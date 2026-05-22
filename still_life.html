@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">    
+    <title>Still Life</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #1a1a1a;
+        }
+        #canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <!-- VERTEX SHADER -->
+    <script id="3d-vertex-shader" type="x-shader/x-vertex">
+        attribute vec4 a_position;
+        attribute vec3 a_normal;
+        attribute vec2 a_texcoord;
+
+        uniform mat4 u_projection;
+        uniform mat4 u_view;
+        uniform mat4 u_world;
+        uniform mat4 u_worldInverseTranspose;
+
+        varying vec3 v_normal;
+        varying vec2 v_texcoord;
+        varying vec3 v_surfaceWorldPosition;
+
+        void main() {
+            vec4 worldPosition = u_world * a_position;
+            gl_Position = u_projection * u_view * worldPosition;
+            v_surfaceWorldPosition = worldPosition.xyz;
+            v_normal = mat3(u_worldInverseTranspose) * a_normal;
+            v_texcoord = a_texcoord;
+        }
+    </script>
+
+    <!-- FRAGMENT SHADER -->
+    <script id="3d-fragment-shader" type="x-shader/x-fragment">
+        precision highp float;
+
+        varying vec3 v_normal;
+        varying vec2 v_texcoord;
+        varying vec3 v_surfaceWorldPosition;
+
+        uniform vec3 u_lightWorldPosition;
+        uniform vec3 u_viewWorldPosition;
+        uniform vec3 u_ambientLight;
+        uniform vec3 u_lightColor;
+        
+        uniform sampler2D u_diffuseMap;
+        uniform float u_alpha; // 1.0 solido, 0.6 vetro
+
+        void main() {
+            vec3 normal = normalize(v_normal);
+
+            vec3 surfaceToLightDirection = normalize(u_lightWorldPosition - v_surfaceWorldPosition);
+            vec3 surfaceToViewDirection = normalize(u_viewWorldPosition - v_surfaceWorldPosition);
+            vec3 halfVector = normalize(surfaceToLightDirection + surfaceToViewDirection);
+
+            float light = max(dot(normal, surfaceToLightDirection), 0.0);
+            float specular = 0.0;
+            if (light > 0.0) {
+                specular = pow(max(dot(normal, halfVector), 0.0), 50.0);
+            }
+
+            vec4 texColor = texture2D(u_diffuseMap, v_texcoord);
+            vec3 finalColor = (u_ambientLight * texColor.rgb) + 
+                              (texColor.rgb * light * u_lightColor) + 
+                              (specular * u_lightColor);
+
+            gl_FragColor = vec4(finalColor, texColor.a * u_alpha);
+        }
+    </script>
+
+    <script src="resources/m4.js"></script>
+    <script src="resources/webgl-utils.js"></script>
+    <script src="resources/mesh_utils.js"></script> <!-- Assicurati di averlo! -->
+    <script src="resources/glm_utils.js"></script>
+    
+    <script src="still_life.js"></script>
+    <script src="input.js"></script>>
+
+</body>
+</html>
