@@ -104,13 +104,16 @@ async function main() {
     // USIAMO LA NUOVA FUNZIONE PONTE CON GLM_UTILS
     const fiascoMesh = await loadMeshWithGLM('resources/obj/Fiasco.obj'); 
     const tavoloMesh = await loadMeshWithGLM('resources/obj/Tavolo.obj');
-
+    const bottiglioneMesh = await loadMeshWithGLM('resources/obj/Bottiglione.obj');
 
     const fiascoBuffers = webglUtils.createBufferInfoFromArrays(gl, fiascoMesh);
     const tavoloBuffers = webglUtils.createBufferInfoFromArrays(gl, tavoloMesh);
+    const bottiglioneBuffers = webglUtils.createBufferInfoFromArrays(gl, bottiglioneMesh);
 
     const tavoloTexture = loadTexture(gl, 'resources/texture/wood.png'); 
     const fiascoTexture = createSolidColorTexture(gl, 100, 180, 120, 255);
+    const bottiglioneTexture = createSolidColorTexture(gl, 194, 116, 0, 255);
+    
 
     initInputHandlers(canvas);
 
@@ -120,6 +123,14 @@ async function main() {
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.uniform1f(locations.alpha, alpha);
         webglUtils.drawBufferInfo(gl, buffers);    
+    }
+
+    // Calcola la distanza di un oggetto dalla camera
+    function getObjectDistance(objectCenter, cameraPos) {
+        const dx = objectCenter[0] - cameraPos[0];
+        const dy = objectCenter[1] - cameraPos[1];
+        const dz = objectCenter[2] - cameraPos[2];
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
     function render(time) {
@@ -164,35 +175,37 @@ async function main() {
         gl.uniform3fv(locations.lightColor, [1.0, 0.9, 0.8]);
         gl.uniform3fv(locations.objectColor, [0.8, 0.8, 0.8]); 
 
-        // 1. DISEGNA IL TAVOLO (Solido)
+        // OGGETTI OPACHI (Tavolo)
         gl.disable(gl.BLEND);
         drawObject(tavoloBuffers, tavoloTexture, 1.0);
 
-        // 2. DISEGNA IL FIASCO (Vetro trasparente)
-        
-        /* NON TRASPARENTE (per confronto)
-        gl.disable(gl.BLEND);
-        gl.disable(gl.CULL_FACE);
-        gl.depthMask(true); 
-        drawObject(fiascoBuffers, fiascoTexture, 1.0);*/
-
-
-        //(Vetro trasparente)
+        //OGGETTI TRANSPARENTI (Vetro)
         gl.enable(gl.BLEND);
         gl.enable(gl.CULL_FACE);
-        //gl.depthMask(false); // Disabilita scrittura nella depth buffer per evitare problemi di ordinamento
 
-        // 1° Passaggio: Disegna la parte interna/posteriore della bottiglia
+        // Ordina gli oggetti trasparenti per distanza dalla camera (dal più lontano al più vicino)
+        const transparentObjects = [
+            { buffers: fiascoBuffers, texture: fiascoTexture, center: [0, 0, -6] },
+            { buffers: bottiglioneBuffers, texture: bottiglioneTexture, center: [2.8, 0, -3.8] }
+        ];
+
+        transparentObjects.sort((a, b) => {
+            const distA = getObjectDistance(a.center, cameraPosition);
+            const distB = getObjectDistance(b.center, cameraPosition);
+            return distB - distA; // Ordina dal più lontano al più vicino
+        });
+
+        // 1° Passaggio: Disegna la parte interna/posteriore degli oggetti trasparenti (ordinati per distanza)
         gl.cullFace(gl.FRONT); // Scarta le facce davanti, disegna quelle dietro
-        drawObject(fiascoBuffers, fiascoTexture, 0.5);
+        for (let obj of transparentObjects) {
+            drawObject(obj.buffers, obj.texture, 0.6);
+        }
 
-        // 2° Passaggio: Disegna la parte esterna/frontale della bottiglia
+        // 2° Passaggio: Disegna la parte esterna/frontale degli oggetti trasparenti (stesso ordine)
         gl.cullFace(gl.BACK);  // Scarta le facce dietro, sovrappone quelle davanti
-        drawObject(fiascoBuffers, fiascoTexture, 0.5);
-
-        // Ricordati di riattivare la depthMask se disegni altri oggetti dopo!
-        gl.depthMask(true); 
-
+        for (let obj of transparentObjects) {
+            drawObject(obj.buffers, obj.texture, 0.6);
+        }
 
         gl.depthMask(true);
 
