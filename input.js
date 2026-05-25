@@ -1,13 +1,11 @@
 "use strict";
 
-// Oggetto globale che fa da "ponte" tra input.js e still_life.js
 const cameraState = {
     angleX: 0.2,
     angleY: 0.0,
     D: 8.0
 };
 
-// Funzione da chiamare nel main per attivare i controlli
 function initInputHandlers(canvas) {
     let isDragging = false;
     let lastMouseX = 0;

@@ -58,6 +58,7 @@ function loadTexture(gl, url) {
     image.src = url;
     image.onload = function() {
         gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
         gl.generateMipmap(gl.TEXTURE_2D);
     };
@@ -105,15 +106,34 @@ async function main() {
     const fiascoMesh = await loadMeshWithGLM('resources/obj/Fiasco.obj'); 
     const tavoloMesh = await loadMeshWithGLM('resources/obj/Tavolo.obj');
     const bottiglioneMesh = await loadMeshWithGLM('resources/obj/Bottiglione.obj');
+    const vinoMesh = await loadMeshWithGLM('resources/obj/Vino.obj');
+    const tappoMesh = await loadMeshWithGLM('resources/obj/Tappo.obj');
+
+    // Mosca
+    const corpoMesh = await loadMeshWithGLM('resources/obj/Fly_body.obj');
+    const aladxMesh = await loadMeshWithGLM('resources/obj/Fly_ala_dx.obj');
+    const alasxMesh = await loadMeshWithGLM('resources/obj/Fly_ala_sx.obj');
+    const occhioMesh = await loadMeshWithGLM('resources/obj/Fly_eyes.obj');
 
     const fiascoBuffers = webglUtils.createBufferInfoFromArrays(gl, fiascoMesh);
     const tavoloBuffers = webglUtils.createBufferInfoFromArrays(gl, tavoloMesh);
     const bottiglioneBuffers = webglUtils.createBufferInfoFromArrays(gl, bottiglioneMesh);
+    const vinoBuffers = webglUtils.createBufferInfoFromArrays(gl, vinoMesh);
+    const tappoBuffers = webglUtils.createBufferInfoFromArrays(gl, tappoMesh);
+    const corpoBuffers = webglUtils.createBufferInfoFromArrays(gl, corpoMesh);
+    const aladxBuffers = webglUtils.createBufferInfoFromArrays(gl, aladxMesh);
+    const alasxBuffers = webglUtils.createBufferInfoFromArrays(gl, alasxMesh);
+    const occhioBuffers = webglUtils.createBufferInfoFromArrays(gl, occhioMesh);
 
     const tavoloTexture = loadTexture(gl, 'resources/texture/wood.png'); 
     const fiascoTexture = createSolidColorTexture(gl, 100, 180, 120, 255);
     const bottiglioneTexture = createSolidColorTexture(gl, 194, 116, 0, 255);
-    
+    const vinoTexture = createSolidColorTexture(gl, 15, 0, 0, 255);
+    const tappoTexture = loadTexture(gl, 'resources/texture/sughero.jpg');
+    const corpoTexture = createSolidColorTexture(gl, 50, 50, 50, 255);
+    const alaTexture = loadTexture(gl, 'resources/texture/wings.png');
+    const occhioTexture = loadTexture(gl, 'resources/texture/Insect-eyes.png');
+
 
     initInputHandlers(canvas);
 
@@ -148,13 +168,14 @@ async function main() {
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-        const camX = Math.sin(cameraState.angleY) * Math.cos(cameraState.angleX) * cameraState.D;
-        const camY = Math.sin(cameraState.angleX) * cameraState.D;
-        const camZ = Math.cos(cameraState.angleY) * Math.cos(cameraState.angleX) * cameraState.D;
-
-        const cameraPosition = [camX, camY, camZ];
         const target = [0, 2, 0]; 
         const up = [0, 1, 0];
+
+        const camX = target[0] + Math.sin(cameraState.angleY) * Math.cos(cameraState.angleX) * cameraState.D;
+        const camY = target[1] + Math.sin(cameraState.angleX) * cameraState.D;
+        const camZ = target[2] + Math.cos(cameraState.angleY) * Math.cos(cameraState.angleX) * cameraState.D;
+
+        const cameraPosition = [camX, camY, camZ];
         
         const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
         const projectionMatrix = m4.perspective(Math.PI / 4, aspect, 0.1, 100);
@@ -175,13 +196,25 @@ async function main() {
         gl.uniform3fv(locations.lightColor, [1.0, 0.9, 0.8]);
         gl.uniform3fv(locations.objectColor, [0.8, 0.8, 0.8]); 
 
-        // OGGETTI OPACHI (Tavolo)
+        // OGGETTI OPACHI 
         gl.disable(gl.BLEND);
-        drawObject(tavoloBuffers, tavoloTexture, 1.0);
+        //gl.disable(gl.CULL_FACE);
 
-        //OGGETTI TRANSPARENTI (Vetro)
+        drawObject(tavoloBuffers, tavoloTexture, 1.0);
+        drawObject(tappoBuffers, tappoTexture, 1.0);
+        drawObject(vinoBuffers, vinoTexture, 1.0);
+        
+        // Mosca
+        drawObject(corpoBuffers, corpoTexture, 1.0);
+        drawObject(aladxBuffers, alaTexture, 1.0);
+        drawObject(alasxBuffers, alaTexture, 1.0);
+        drawObject(occhioBuffers, occhioTexture, 1.0);
+
+
+        //OGGETTI TRANSPARENTI
         gl.enable(gl.BLEND);
         gl.enable(gl.CULL_FACE);
+        gl.depthMask(false); 
 
         // Ordina gli oggetti trasparenti per distanza dalla camera (dal più lontano al più vicino)
         const transparentObjects = [
