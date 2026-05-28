@@ -1,0 +1,52 @@
+# Blender 5.1.1 MTL File: 'Still_Life.blend'
+# www.blender.org
+
+newmtl Etichetta
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd C:/Users/Tacce/Desktop/UNIBO/corsi/Secondo anno/Fondamenti di Computer Graphics/progetto/Still_Life/resources/texture/Etichetta.png
+
+newmtl Material
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.432322 0.432322 0.432322
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+
+newmtl Material.004
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 1
+map_Kd C:/Users/Tacce/Desktop/UNIBO/corsi/Secondo anno/Fondamenti di Computer Graphics/progetto/Still_Life/resources/texture/wings.png
+
+newmtl Occhi
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd C:/Users/Tacce/Desktop/UNIBO/corsi/Secondo anno/Fondamenti di Computer Graphics/progetto/Still_Life/resources/texture/Insect-eyes.png
+
+newmtl Sughero
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd C:/Users/Tacce/Desktop/UNIBO/corsi/Secondo anno/Fondamenti di Computer Graphics/progetto/Still_Life/resources/texture/sughero.jpg

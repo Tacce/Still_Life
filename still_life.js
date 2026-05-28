@@ -108,6 +108,7 @@ async function main() {
     const bottiglioneMesh = await loadMeshWithGLM('resources/obj/Bottiglione.obj');
     const vinoMesh = await loadMeshWithGLM('resources/obj/Vino.obj');
     const tappoMesh = await loadMeshWithGLM('resources/obj/Tappo.obj');
+    const etichettaMesh = await loadMeshWithGLM('resources/obj/Etichetta.obj');
 
     // Mosca
     const corpoMesh = await loadMeshWithGLM('resources/obj/Fly_body.obj');
@@ -120,6 +121,7 @@ async function main() {
     const bottiglioneBuffers = webglUtils.createBufferInfoFromArrays(gl, bottiglioneMesh);
     const vinoBuffers = webglUtils.createBufferInfoFromArrays(gl, vinoMesh);
     const tappoBuffers = webglUtils.createBufferInfoFromArrays(gl, tappoMesh);
+    const etichettaBuffers = webglUtils.createBufferInfoFromArrays(gl, etichettaMesh);
     const corpoBuffers = webglUtils.createBufferInfoFromArrays(gl, corpoMesh);
     const aladxBuffers = webglUtils.createBufferInfoFromArrays(gl, aladxMesh);
     const alasxBuffers = webglUtils.createBufferInfoFromArrays(gl, alasxMesh);
@@ -130,6 +132,7 @@ async function main() {
     const bottiglioneTexture = createSolidColorTexture(gl, 194, 116, 0, 255);
     const vinoTexture = createSolidColorTexture(gl, 15, 0, 0, 255);
     const tappoTexture = loadTexture(gl, 'resources/texture/sughero.jpg');
+    const etichettaTexture = loadTexture(gl, 'resources/texture/Etichetta.png');
     const corpoTexture = createSolidColorTexture(gl, 50, 50, 50, 255);
     const alaTexture = loadTexture(gl, 'resources/texture/wings.png');
     const occhioTexture = loadTexture(gl, 'resources/texture/Insect-eyes.png');
@@ -203,7 +206,7 @@ async function main() {
         drawObject(tavoloBuffers, tavoloTexture, 1.0);
         drawObject(tappoBuffers, tappoTexture, 1.0);
         drawObject(vinoBuffers, vinoTexture, 1.0);
-        
+        drawObject(etichettaBuffers, etichettaTexture, 1.0);
         // Mosca
         drawObject(corpoBuffers, corpoTexture, 1.0);
         drawObject(aladxBuffers, alaTexture, 1.0);
