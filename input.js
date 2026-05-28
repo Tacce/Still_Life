@@ -1,11 +1,5 @@
 "use strict";
 
-const cameraState = {
-    angleX: 0.2,
-    angleY: 0.0,
-    D: 8.0
-};
-
 function initInputHandlers(canvas) {
     let isDragging = false;
     let lastMouseX = 0;

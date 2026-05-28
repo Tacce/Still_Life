@@ -1,5 +1,26 @@
 "use strict";
 
+const cameraState = {
+    angleX: 0.17,
+    angleY: -1.5,
+    D: 12.0,
+    near: 0.1,
+    far: 100.0,
+    fovy: 45.0
+};
+
+const lightState = {
+    x: -1.0,
+    y: 10.0,
+    z: 5.0,
+    ambientR: 0.2,
+    ambientG: 0.2,
+    ambientB: 0.25,
+    lightR: 1.0,
+    lightG: 0.9,
+    lightB: 0.8
+};
+
 // --- FUNZIONE PONTE PER USARE GLM_UTILS ---
 async function loadMeshWithGLM(url) {
     const response = await fetch(url);
@@ -139,6 +160,7 @@ async function main() {
 
 
     initInputHandlers(canvas);
+    define_gui();
 
     // Helper per disegnare velocemente nel render loop
     function drawObject(buffers, texture, alpha) {
@@ -181,7 +203,7 @@ async function main() {
         const cameraPosition = [camX, camY, camZ];
         
         const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-        const projectionMatrix = m4.perspective(Math.PI / 4, aspect, 0.1, 100);
+        const projectionMatrix = m4.perspective(cameraState.fovy * Math.PI / 180, aspect, cameraState.near, cameraState.far);
         const cameraMatrix = m4.lookAt(cameraPosition, target, up);
         const viewMatrix = m4.inverse(cameraMatrix);
 
@@ -193,10 +215,10 @@ async function main() {
         gl.uniformMatrix4fv(locations.world, false, worldMatrix);
         gl.uniformMatrix4fv(locations.worldInverseTranspose, false, worldInverseTransposeMatrix);
 
-        gl.uniform3fv(locations.lightPos, [-1, 10, 5]); 
+        gl.uniform3fv(locations.lightPos, [lightState.x, lightState.y, lightState.z]); 
         gl.uniform3fv(locations.viewPos, cameraPosition); 
-        gl.uniform3fv(locations.ambient, [0.2, 0.2, 0.25]); 
-        gl.uniform3fv(locations.lightColor, [1.0, 0.9, 0.8]);
+        gl.uniform3fv(locations.ambient, [lightState.ambientR, lightState.ambientG, lightState.ambientB]); 
+        gl.uniform3fv(locations.lightColor, [lightState.lightR, lightState.lightG, lightState.lightB]);
         gl.uniform3fv(locations.objectColor, [0.8, 0.8, 0.8]); 
 
         // OGGETTI OPACHI 
