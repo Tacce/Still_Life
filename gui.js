@@ -23,6 +23,10 @@ function define_gui() {
         lightB: 0.8
     };
 
+    const defaultWingAnimationState = {
+        speed: 0.008
+    };
+
     function refreshControllers(folder) {
         folder.__controllers.forEach((controller) => controller.updateDisplay());
         folder.__folders && Object.values(folder.__folders).forEach((subFolder) => refreshControllers(subFolder));
@@ -31,6 +35,7 @@ function define_gui() {
     function resetToDefaults() {
         Object.assign(cameraState, defaultCameraState);
         Object.assign(lightState, defaultLightState);
+        Object.assign(wingAnimationState, defaultWingAnimationState);
         refreshControllers(gui);
     }
 
@@ -56,4 +61,8 @@ function define_gui() {
     lightFolder.add(lightState, "lightG", 0.0, 1.0, 0.01).listen();
     lightFolder.add(lightState, "lightB", 0.0, 1.0, 0.01).listen();
     lightFolder.open();
+
+    const animationFolder = gui.addFolder("Animation");
+    animationFolder.add(wingAnimationState, "speed", 0.0, 0.02, 0.001).name("Wing speed").listen();
+    animationFolder.open();
 }

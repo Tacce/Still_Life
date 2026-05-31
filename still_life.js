@@ -21,6 +21,10 @@ const lightState = {
     lightB: 0.8
 };
 
+const wingAnimationState = {
+    speed: 0.008
+};
+
 // --- FUNZIONE PONTE PER USARE GLM_UTILS ---
 async function loadMeshWithGLM(url) {
     const response = await fetch(url);
@@ -157,15 +161,23 @@ async function main() {
     const corpoTexture = createSolidColorTexture(gl, 50, 50, 50, 255);
     const alaTexture = loadTexture(gl, 'resources/texture/wings.png');
     const occhioTexture = loadTexture(gl, 'resources/texture/Insect-eyes.png');
+    const aladxWorldMatrix = m4.translation(-0.013, 0.157, 0.018);
+    const alasxWorldMatrix = m4.translation(-0.013, 0.157, -0.018);
+    const flyBaseMatrix = m4.multiply(
+        m4.translation(3.0, 0.0, -6.0),
+        m4.yRotation(47 * Math.PI / 180)
+    );
 
 
     initInputHandlers(canvas);
     define_gui();
 
     // Helper per disegnare velocemente nel render loop
-    function drawObject(buffers, texture, alpha) {
+    function drawObject(buffers, texture, alpha, worldMatrix = m4.identity()) {
        webglUtils.setBuffersAndAttributes(gl, programInfo, buffers);
         gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.uniformMatrix4fv(locations.world, false, worldMatrix);
+        gl.uniformMatrix4fv(locations.worldInverseTranspose, false, m4.transpose(m4.inverse(worldMatrix)));
         gl.uniform1f(locations.alpha, alpha);
         webglUtils.drawBufferInfo(gl, buffers);    
     }
@@ -181,6 +193,20 @@ async function main() {
     function render(time) {
         webglUtils.resizeCanvasToDisplaySize(gl.canvas);
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+        const wingPhase = (time * wingAnimationState.speed) % 1;
+        const wingWave = 1 - 4 * Math.abs(wingPhase - 0.5);
+        const wingAngle = Math.round(wingWave * 5) / 5 * 0.6;
+        const aladxWorldMatrixAnimated = m4.multiply(
+            flyBaseMatrix,
+            m4.multiply(aladxWorldMatrix, m4.xRotation(wingAngle))
+        );
+        const alasxWorldMatrixAnimated = m4.multiply(
+            flyBaseMatrix,
+            m4.multiply(alasxWorldMatrix, m4.xRotation(-wingAngle))
+        );
+        const corpoWorldMatrix = flyBaseMatrix;
+        const occhioWorldMatrix = flyBaseMatrix;
 
         gl.clearColor(0.1, 0.1, 0.1, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -230,10 +256,10 @@ async function main() {
         drawObject(vinoBuffers, vinoTexture, 1.0);
         drawObject(etichettaBuffers, etichettaTexture, 1.0);
         // Mosca
-        drawObject(corpoBuffers, corpoTexture, 1.0);
-        drawObject(aladxBuffers, alaTexture, 1.0);
-        drawObject(alasxBuffers, alaTexture, 1.0);
-        drawObject(occhioBuffers, occhioTexture, 1.0);
+        drawObject(corpoBuffers, corpoTexture, 1.0, corpoWorldMatrix);
+        drawObject(aladxBuffers, alaTexture, 1.0, aladxWorldMatrixAnimated);
+        drawObject(alasxBuffers, alaTexture, 1.0, alasxWorldMatrixAnimated);
+        drawObject(occhioBuffers, occhioTexture, 1.0, occhioWorldMatrix);
 
 
         //OGGETTI TRANSPARENTI
