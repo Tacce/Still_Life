@@ -21,7 +21,11 @@ const lightState = {
     lightB: 0.8
 };
 
-const wingAnimationState = {
+const flyWingAnimationState = {
+    speed: 0.008
+};
+
+const butterflyWingAnimationState = {
     speed: 0.008
 };
 
@@ -136,10 +140,15 @@ async function main() {
     const etichettaMesh = await loadMeshWithGLM('resources/obj/Etichetta.obj');
 
     // Mosca
-    const corpoMesh = await loadMeshWithGLM('resources/obj/Fly_body.obj');
-    const aladxMesh = await loadMeshWithGLM('resources/obj/Fly_ala_dx.obj');
-    const alasxMesh = await loadMeshWithGLM('resources/obj/Fly_ala_sx.obj');
-    const occhioMesh = await loadMeshWithGLM('resources/obj/Fly_eyes.obj');
+    const Fly_corpoMesh = await loadMeshWithGLM('resources/obj/Fly_body.obj');
+    const Fly_aladxMesh = await loadMeshWithGLM('resources/obj/Fly_ala_dx.obj');
+    const Fly_alasxMesh = await loadMeshWithGLM('resources/obj/Fly_ala_sx.obj');
+    const Fly_occhioMesh = await loadMeshWithGLM('resources/obj/Fly_eyes.obj');
+
+    // Farfalla
+    const Butterfly_corpoMesh = await loadMeshWithGLM('resources/obj/Butterfly_body.obj');
+    const Butterfly_aladxMesh = await loadMeshWithGLM('resources/obj/Butterfly_ala_dx.obj');
+    const Butterfly_alasxMesh = await loadMeshWithGLM('resources/obj/Butterfly_ala_sx.obj');
 
     const fiascoBuffers = webglUtils.createBufferInfoFromArrays(gl, fiascoMesh);
     const tavoloBuffers = webglUtils.createBufferInfoFromArrays(gl, tavoloMesh);
@@ -147,10 +156,14 @@ async function main() {
     const vinoBuffers = webglUtils.createBufferInfoFromArrays(gl, vinoMesh);
     const tappoBuffers = webglUtils.createBufferInfoFromArrays(gl, tappoMesh);
     const etichettaBuffers = webglUtils.createBufferInfoFromArrays(gl, etichettaMesh);
-    const corpoBuffers = webglUtils.createBufferInfoFromArrays(gl, corpoMesh);
-    const aladxBuffers = webglUtils.createBufferInfoFromArrays(gl, aladxMesh);
-    const alasxBuffers = webglUtils.createBufferInfoFromArrays(gl, alasxMesh);
-    const occhioBuffers = webglUtils.createBufferInfoFromArrays(gl, occhioMesh);
+    const corpoBuffers = webglUtils.createBufferInfoFromArrays(gl, Fly_corpoMesh);
+    const aladxBuffers = webglUtils.createBufferInfoFromArrays(gl, Fly_aladxMesh);
+    const alasxBuffers = webglUtils.createBufferInfoFromArrays(gl, Fly_alasxMesh);
+    const occhioBuffers = webglUtils.createBufferInfoFromArrays(gl, Fly_occhioMesh);
+    const butterflyCorpoBuffers = webglUtils.createBufferInfoFromArrays(gl, Butterfly_corpoMesh);
+    const butterflyAladxBuffers = webglUtils.createBufferInfoFromArrays(gl, Butterfly_aladxMesh);
+    const butterflyAlasxBuffers = webglUtils.createBufferInfoFromArrays(gl, Butterfly_alasxMesh);
+
 
     const tavoloTexture = loadTexture(gl, 'resources/texture/wood.png'); 
     const fiascoTexture = createSolidColorTexture(gl, 100, 180, 120, 255);
@@ -158,15 +171,23 @@ async function main() {
     const vinoTexture = createSolidColorTexture(gl, 15, 0, 0, 255);
     const tappoTexture = loadTexture(gl, 'resources/texture/sughero.jpg');
     const etichettaTexture = loadTexture(gl, 'resources/texture/Etichetta.png');
-    const corpoTexture = createSolidColorTexture(gl, 50, 50, 50, 255);
-    const alaTexture = loadTexture(gl, 'resources/texture/wings.png');
-    const occhioTexture = loadTexture(gl, 'resources/texture/Insect-eyes.png');
+   
+    const Fly_corpoTexture = createSolidColorTexture(gl, 50, 50, 50, 255);
+    const Fly_alaTexture = loadTexture(gl, 'resources/texture/wings.png');
+    const Fly_occhioTexture = loadTexture(gl, 'resources/texture/Insect-eyes.png');
+    const butterflyTexture = loadTexture(gl, 'resources/texture/Farfalla.png');
+
+    
+
     const aladxWorldMatrix = m4.translation(-0.013, 0.157, 0.018);
     const alasxWorldMatrix = m4.translation(-0.013, 0.157, -0.018);
     const flyBaseMatrix = m4.multiply(
         m4.translation(3.0, 0.0, -6.0),
         m4.yRotation(47 * Math.PI / 180)
     );
+    // Butterfly wing base translations (left/right)
+    const butterflyAlasxWorldMatrix = m4.translation(0.07, 0.05, 0.02); // left (sx)
+    const butterflyAladxWorldMatrix = m4.translation(0.07, 0.05, -0.02); // right (dx)
 
 
     initInputHandlers(canvas);
@@ -194,19 +215,16 @@ async function main() {
         webglUtils.resizeCanvasToDisplaySize(gl.canvas);
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
-        const wingPhase = (time * wingAnimationState.speed) % 1;
-        const wingWave = 1 - 4 * Math.abs(wingPhase - 0.5);
-        const wingAngle = Math.round(wingWave * 5) / 5 * 0.6;
-        const aladxWorldMatrixAnimated = m4.multiply(
-            flyBaseMatrix,
-            m4.multiply(aladxWorldMatrix, m4.xRotation(wingAngle))
-        );
-        const alasxWorldMatrixAnimated = m4.multiply(
-            flyBaseMatrix,
-            m4.multiply(alasxWorldMatrix, m4.xRotation(-wingAngle))
-        );
-        const corpoWorldMatrix = flyBaseMatrix;
-        const occhioWorldMatrix = flyBaseMatrix;
+        const flyAnim = computeFlyAnimation(time, flyBaseMatrix, aladxWorldMatrix, alasxWorldMatrix);
+        const aladxWorldMatrixAnimated = flyAnim.aladxWorldMatrixAnimated;
+        const alasxWorldMatrixAnimated = flyAnim.alasxWorldMatrixAnimated;
+        const corpoWorldMatrix = flyAnim.corpoWorldMatrix;
+        const occhioWorldMatrix = flyAnim.occhioWorldMatrix;
+
+        const butterflyAnim = computeButterflyAnimation(time, butterflyAladxWorldMatrix, butterflyAlasxWorldMatrix);
+        const butterflyAladxWorldMatrixAnimated = butterflyAnim.butterflyAladxWorldMatrixAnimated;
+        const butterflyAlasxWorldMatrixAnimated = butterflyAnim.butterflyAlasxWorldMatrixAnimated;
+        const butterflyBaseMatrixAnimated = butterflyAnim.butterflyBaseMatrixAnimated;
 
         gl.clearColor(0.1, 0.1, 0.1, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -256,10 +274,21 @@ async function main() {
         drawObject(vinoBuffers, vinoTexture, 1.0);
         drawObject(etichettaBuffers, etichettaTexture, 1.0);
         // Mosca
-        drawObject(corpoBuffers, corpoTexture, 1.0, corpoWorldMatrix);
-        drawObject(aladxBuffers, alaTexture, 1.0, aladxWorldMatrixAnimated);
-        drawObject(alasxBuffers, alaTexture, 1.0, alasxWorldMatrixAnimated);
-        drawObject(occhioBuffers, occhioTexture, 1.0, occhioWorldMatrix);
+        drawObject(corpoBuffers, Fly_corpoTexture, 1.0, corpoWorldMatrix);
+        // Le ali sono piani: disabilitiamo temporaneamente il culling per renderle double-sided
+        gl.disable(gl.CULL_FACE);
+        drawObject(aladxBuffers, Fly_alaTexture, 1.0, aladxWorldMatrixAnimated);
+        drawObject(alasxBuffers, Fly_alaTexture, 1.0, alasxWorldMatrixAnimated);
+        gl.enable(gl.CULL_FACE);
+        drawObject(occhioBuffers, Fly_occhioTexture, 1.0, occhioWorldMatrix);
+
+        // Farfalla
+        drawObject(butterflyCorpoBuffers, butterflyTexture, 1.0, butterflyBaseMatrixAnimated);
+        // Le ali della farfalla sono piani: disabilitiamo temporaneamente il culling
+        gl.disable(gl.CULL_FACE);
+        drawObject(butterflyAladxBuffers, butterflyTexture, 1.0, butterflyAladxWorldMatrixAnimated);
+        drawObject(butterflyAlasxBuffers, butterflyTexture, 1.0, butterflyAlasxWorldMatrixAnimated);
+        gl.enable(gl.CULL_FACE);
 
 
         //OGGETTI TRANSPARENTI

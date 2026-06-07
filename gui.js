@@ -23,7 +23,10 @@ function define_gui() {
         lightB: 0.8
     };
 
-    const defaultWingAnimationState = {
+    const defaultFlyWingAnimationState = {
+        speed: 0.008
+    };
+    const defaultButterflyWingAnimationState = {
         speed: 0.008
     };
 
@@ -35,7 +38,8 @@ function define_gui() {
     function resetToDefaults() {
         Object.assign(cameraState, defaultCameraState);
         Object.assign(lightState, defaultLightState);
-        Object.assign(wingAnimationState, defaultWingAnimationState);
+        Object.assign(flyWingAnimationState, defaultFlyWingAnimationState);
+        Object.assign(butterflyWingAnimationState, defaultButterflyWingAnimationState);
         refreshControllers(gui);
     }
 
@@ -63,6 +67,7 @@ function define_gui() {
     lightFolder.open();
 
     const animationFolder = gui.addFolder("Animation");
-    animationFolder.add(wingAnimationState, "speed", 0.0, 0.02, 0.001).name("Wing speed").listen();
+    animationFolder.add(flyWingAnimationState, "speed", 0.0, 0.02, 0.0005).name("Fly wing speed").listen();
+    animationFolder.add(butterflyWingAnimationState, "speed", 0.0, 0.02, 0.0005).name("Butterfly wing speed").listen();
     animationFolder.open();
 }
