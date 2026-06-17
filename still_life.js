@@ -33,6 +33,10 @@ const shadowState = {
     enabled: true
 };
 
+const appState = {
+    isPaused: false
+};
+
 // --- FUNZIONE PONTE PER USARE GLM_UTILS ---
 async function loadMeshWithGLM(url) {
     const response = await fetch(url);
@@ -262,16 +266,17 @@ async function main() {
         if (!shadowPass) {
             drawObject(currentProgramInfo, etichettaBuffers, etichettaTexture, 1.0);
         }
-        drawObject(currentProgramInfo, corpoBuffers, Fly_corpoTexture, 1.0, flyWorldMatrices.corpoWorldMatrix);
         
+        drawObject(currentProgramInfo, corpoBuffers, Fly_corpoTexture, 1.0, flyWorldMatrices.corpoWorldMatrix);
+        drawObject(currentProgramInfo, aladxBuffers, Fly_alaTexture, 1.0, flyWorldMatrices.aladxWorldMatrixAnimated);
+        drawObject(currentProgramInfo, alasxBuffers, Fly_alaTexture, 1.0, flyWorldMatrices.alasxWorldMatrixAnimated);
         drawObject(currentProgramInfo, occhioBuffers, Fly_occhioTexture, 1.0, flyWorldMatrices.occhioWorldMatrix);
+        
         drawObject(currentProgramInfo, butterflyCorpoBuffers, butterflyTexture, 1.0, butterflyWorldMatrices.butterflyBaseMatrixAnimated);
         
         gl.disable(gl.CULL_FACE);
         drawObject(currentProgramInfo, butterflyAladxBuffers, butterflyTexture, 1.0, butterflyWorldMatrices.butterflyAladxWorldMatrixAnimated, true);
         drawObject(currentProgramInfo, butterflyAlasxBuffers, butterflyTexture, 1.0, butterflyWorldMatrices.butterflyAlasxWorldMatrixAnimated, true);
-        drawObject(currentProgramInfo, aladxBuffers, Fly_alaTexture, 1.0, flyWorldMatrices.aladxWorldMatrixAnimated);
-        drawObject(currentProgramInfo, alasxBuffers, Fly_alaTexture, 1.0, flyWorldMatrices.alasxWorldMatrixAnimated);
         gl.enable(gl.CULL_FACE);
 
 
@@ -313,8 +318,21 @@ async function main() {
         gl.depthMask(true);
     }
 
+    // Variabili per il calcolo del tempo virtuale
+    let virtualTime = 0;
+    let lastRealTime = 0;
+
     function render(time) {
-        const flyAnim = computeFlyAnimation(time, flyBaseMatrix, aladxWorldMatrix, alasxWorldMatrix);
+
+        if (lastRealTime === 0) lastRealTime = time;
+        const deltaTime = time - lastRealTime;
+        lastRealTime = time; // Aggiorniamo il contatore per il frame successivo
+
+        if (!appState.isPaused) {
+            virtualTime += deltaTime;
+        }
+
+        const flyAnim = computeFlyAnimation(virtualTime, flyBaseMatrix, aladxWorldMatrix, alasxWorldMatrix);
         const flyWorldMatrices = {
             aladxWorldMatrixAnimated: flyAnim.aladxWorldMatrixAnimated,
             alasxWorldMatrixAnimated: flyAnim.alasxWorldMatrixAnimated,
@@ -322,7 +340,7 @@ async function main() {
             occhioWorldMatrix: flyAnim.occhioWorldMatrix,
         };
 
-        const butterflyAnim = computeButterflyAnimation(time, butterflyAladxWorldMatrix, butterflyAlasxWorldMatrix);
+        const butterflyAnim = computeButterflyAnimation(virtualTime, butterflyAladxWorldMatrix, butterflyAlasxWorldMatrix);
         const butterflyWorldMatrices = {
             butterflyAladxWorldMatrixAnimated: butterflyAnim.butterflyAladxWorldMatrixAnimated,
             butterflyAlasxWorldMatrixAnimated: butterflyAnim.butterflyAlasxWorldMatrixAnimated,
@@ -352,7 +370,18 @@ async function main() {
         const viewMatrix = m4.inverse(cameraMatrix);
 
         const lightWorldMatrix = m4.lookAt([lightState.x, lightState.y, lightState.z], [0, 0, 0], [0, 1, 0]);
-        const lightProjectionMatrix = m4.orthographic(-8, 8, -8, 8, 0.5, 25);
+        // Calcola automaticamente la frustum minima che copre la scena
+        /*const sceneRadius = 10; // raggio approssimativo della scena
+        const lightDist = Math.sqrt(lightState.x**2 + lightState.y**2 + lightState.z**2);
+        const frustumSize = sceneRadius * (lightDist / lightState.y); // scala con l'angolo
+
+        const lightProjectionMatrix = m4.orthographic(
+            -frustumSize, frustumSize, 
+            -frustumSize, frustumSize, 
+            0.5, lightDist + sceneRadius
+        );*/
+        const lightProjectionMatrix = m4.orthographic(-10, 10, -10, 10, 0.5, 30);
+
 
         if (shadowState.enabled) {
             gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);

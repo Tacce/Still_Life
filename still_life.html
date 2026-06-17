@@ -18,10 +18,40 @@
             width: 100vw;
             height: 100vh;
         }
+        #mobile-pause-btn {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            font-size: 18px;
+            font-family: sans-serif;
+            font-weight: bold;
+            color: white;
+            background-color: rgba(40, 40, 40, 0.8);
+            border: 2px solid #ffffff;
+            border-radius: 25px;
+            cursor: pointer;
+            z-index: 10; /* Lo tiene sopra il canvas */
+            user-select: none; /* Evita selezioni accidentali del testo */
+        }
+        
+        #mobile-pause-btn:active {
+            background-color: rgba(100, 100, 100, 0.9);
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+            #mobile-pause-btn {
+                display: none;
+            }
+        }
+
     </style>
 </head>
 <body>
     <canvas id="canvas"></canvas>
+
+    <button id="mobile-pause-btn">Pause</button>
 
     <!-- VERTEX SHADER -->
     <script id="3d-vertex-shader" type="x-shader/x-vertex">
@@ -96,7 +126,7 @@
             
             // bias prova a bilanciare peter panning e acne
             float cosTheta = clamp(dot(normal, surfaceToLightDirection), 0.0, 1.0);
-            float bias = mix(0.03, 0.005, cosTheta);
+            float bias = mix(0.01, 0.005, cosTheta);
             float currentDepth = projectedTexcoord.z - bias;
 
             bool inRange =
