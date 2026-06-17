@@ -21,7 +21,7 @@ window.computeFlyAnimation = function(time, flyBaseMatrix, aladxWorldMatrix, ala
 };
 
 window.computeButterflyAnimation = function(time, butterflyAladxWorldMatrix, butterflyAlasxWorldMatrix) {
-    const butterflyWingPhase = (time * butterflyWingAnimationState.speed * 0.15) % 1;
+    const butterflyWingPhase = (time * butterflyWingAnimationState.speed) % 1;
     const butterflyWingWave = 1 - Math.abs(2 * butterflyWingPhase - 1);
     const butterflyWingAngle = butterflyWingWave * (Math.PI / 2);
 

@@ -26,7 +26,11 @@ const flyWingAnimationState = {
 };
 
 const butterflyWingAnimationState = {
-    speed: 0.008
+    speed: 0.002
+};
+
+const shadowState = {
+    enabled: true
 };
 
 // --- FUNZIONE PONTE PER USARE GLM_UTILS ---
@@ -110,7 +114,29 @@ async function main() {
         return;
     }
 
+    const ext = gl.getExtension('WEBGL_depth_texture');
+    if (!ext) {
+        alert('Il tuo browser non supporta WEBGL_depth_texture');
+        return;
+    }
+
     const programInfo = webglUtils.createProgramInfo(gl, ["3d-vertex-shader", "3d-fragment-shader"]);
+    const depthProgramInfo = webglUtils.createProgramInfo(gl, ["depth-vertex-shader", "depth-fragment-shader"]);
+
+    const depthTextureSize = 2048;
+    const depthTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, depthTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT, depthTextureSize, depthTextureSize, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    const depthFramebuffer = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depthTexture, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
     const program = programInfo.program; 
     gl.useProgram(program);
 
@@ -122,13 +148,18 @@ async function main() {
         view: gl.getUniformLocation(program, "u_view"),
         world: gl.getUniformLocation(program, "u_world"),
         worldInverseTranspose: gl.getUniformLocation(program, "u_worldInverseTranspose"),
+        textureMatrix: gl.getUniformLocation(program, "u_textureMatrix"),
         lightPos: gl.getUniformLocation(program, "u_lightWorldPosition"),
         viewPos: gl.getUniformLocation(program, "u_viewWorldPosition"),
         ambient: gl.getUniformLocation(program, "u_ambientLight"),
         lightColor: gl.getUniformLocation(program, "u_lightColor"),
         objectColor: gl.getUniformLocation(program, "u_objectColor"),
         diffuseMap: gl.getUniformLocation(program, "u_diffuseMap"),
+        projectedTexture: gl.getUniformLocation(program, "u_projectedTexture"),
+        bias: gl.getUniformLocation(program, "u_bias"),
+        shadowsEnabled: gl.getUniformLocation(program, "u_shadowsEnabled"),
         alpha: gl.getUniformLocation(program, "u_alpha"),
+        isDoubleSided: gl.getUniformLocation(program, "u_isDoubleSided")
     };
 
     // USIAMO LA NUOVA FUNZIONE PONTE CON GLM_UTILS
@@ -194,12 +225,21 @@ async function main() {
     define_gui();
 
     // Helper per disegnare velocemente nel render loop
-    function drawObject(buffers, texture, alpha, worldMatrix = m4.identity()) {
-       webglUtils.setBuffersAndAttributes(gl, programInfo, buffers);
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.uniformMatrix4fv(locations.world, false, worldMatrix);
-        gl.uniformMatrix4fv(locations.worldInverseTranspose, false, m4.transpose(m4.inverse(worldMatrix)));
-        gl.uniform1f(locations.alpha, alpha);
+    function drawObject(currentProgramInfo, buffers, texture, alpha, worldMatrix = m4.identity(), isDoubleSided = false) {
+        webglUtils.setBuffersAndAttributes(gl, currentProgramInfo, buffers);
+        gl.uniformMatrix4fv(gl.getUniformLocation(currentProgramInfo.program, "u_world"), false, worldMatrix);
+
+        const witLoc = gl.getUniformLocation(currentProgramInfo.program, "u_worldInverseTranspose");
+        if (witLoc) {
+            gl.uniformMatrix4fv(witLoc, false, m4.transpose(m4.inverse(worldMatrix)));
+        }
+
+        if (currentProgramInfo === programInfo) {
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.uniform1f(locations.alpha, alpha);
+            gl.uniform1i(locations.isDoubleSided, isDoubleSided ? 1 : 0);
+        }
+
         webglUtils.drawBufferInfo(gl, buffers);    
     }
 
@@ -211,29 +251,89 @@ async function main() {
         return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
-    function render(time) {
-        webglUtils.resizeCanvasToDisplaySize(gl.canvas);
-        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+    function drawSceneObjects(currentProgramInfo, sceneState, options = {}) {
+        const includeTransparent = options.includeTransparent !== false;
+        const shadowPass = options.shadowPass === true;
+        const { flyWorldMatrices, butterflyWorldMatrices, cameraPosition } = sceneState;
 
+        drawObject(currentProgramInfo, tavoloBuffers, tavoloTexture, 1.0);
+        drawObject(currentProgramInfo, tappoBuffers, tappoTexture, 1.0);
+        drawObject(currentProgramInfo, vinoBuffers, vinoTexture, 1.0);
+        if (!shadowPass) {
+            drawObject(currentProgramInfo, etichettaBuffers, etichettaTexture, 1.0);
+        }
+        drawObject(currentProgramInfo, corpoBuffers, Fly_corpoTexture, 1.0, flyWorldMatrices.corpoWorldMatrix);
+        
+        drawObject(currentProgramInfo, occhioBuffers, Fly_occhioTexture, 1.0, flyWorldMatrices.occhioWorldMatrix);
+        drawObject(currentProgramInfo, butterflyCorpoBuffers, butterflyTexture, 1.0, butterflyWorldMatrices.butterflyBaseMatrixAnimated);
+        
+        gl.disable(gl.CULL_FACE);
+        drawObject(currentProgramInfo, butterflyAladxBuffers, butterflyTexture, 1.0, butterflyWorldMatrices.butterflyAladxWorldMatrixAnimated, true);
+        drawObject(currentProgramInfo, butterflyAlasxBuffers, butterflyTexture, 1.0, butterflyWorldMatrices.butterflyAlasxWorldMatrixAnimated, true);
+        drawObject(currentProgramInfo, aladxBuffers, Fly_alaTexture, 1.0, flyWorldMatrices.aladxWorldMatrixAnimated);
+        drawObject(currentProgramInfo, alasxBuffers, Fly_alaTexture, 1.0, flyWorldMatrices.alasxWorldMatrixAnimated);
+        gl.enable(gl.CULL_FACE);
+
+
+        if (!includeTransparent) {
+            return;
+        }
+
+        const transparentObjects = [
+            { buffers: fiascoBuffers, texture: fiascoTexture, center: [0, 0, -6] },
+            { buffers: bottiglioneBuffers, texture: bottiglioneTexture, center: [2.8, 0, -3.8] }
+        ];
+
+        transparentObjects.sort((a, b) => {
+            const distA = getObjectDistance(a.center, cameraPosition);
+            const distB = getObjectDistance(b.center, cameraPosition);
+            return distB - distA;
+        });
+
+        if (shadowPass) {
+            gl.disable(gl.CULL_FACE);
+            for (const obj of transparentObjects) {
+                drawObject(currentProgramInfo, obj.buffers, obj.texture, 1.0);
+            }
+            gl.enable(gl.CULL_FACE);
+            return;
+        }
+
+        gl.enable(gl.BLEND);
+        gl.depthMask(false);
+        for (const obj of transparentObjects) {
+            // Pass 1: facce posteriori
+            gl.cullFace(gl.FRONT);
+            drawObject(currentProgramInfo, obj.buffers, obj.texture, 0.6);
+            
+            // Pass 2: facce frontali  
+            gl.cullFace(gl.BACK);
+            drawObject(currentProgramInfo, obj.buffers, obj.texture, 0.6);
+        }
+        gl.depthMask(true);
+    }
+
+    function render(time) {
         const flyAnim = computeFlyAnimation(time, flyBaseMatrix, aladxWorldMatrix, alasxWorldMatrix);
-        const aladxWorldMatrixAnimated = flyAnim.aladxWorldMatrixAnimated;
-        const alasxWorldMatrixAnimated = flyAnim.alasxWorldMatrixAnimated;
-        const corpoWorldMatrix = flyAnim.corpoWorldMatrix;
-        const occhioWorldMatrix = flyAnim.occhioWorldMatrix;
+        const flyWorldMatrices = {
+            aladxWorldMatrixAnimated: flyAnim.aladxWorldMatrixAnimated,
+            alasxWorldMatrixAnimated: flyAnim.alasxWorldMatrixAnimated,
+            corpoWorldMatrix: flyAnim.corpoWorldMatrix,
+            occhioWorldMatrix: flyAnim.occhioWorldMatrix,
+        };
 
         const butterflyAnim = computeButterflyAnimation(time, butterflyAladxWorldMatrix, butterflyAlasxWorldMatrix);
-        const butterflyAladxWorldMatrixAnimated = butterflyAnim.butterflyAladxWorldMatrixAnimated;
-        const butterflyAlasxWorldMatrixAnimated = butterflyAnim.butterflyAlasxWorldMatrixAnimated;
-        const butterflyBaseMatrixAnimated = butterflyAnim.butterflyBaseMatrixAnimated;
+        const butterflyWorldMatrices = {
+            butterflyAladxWorldMatrixAnimated: butterflyAnim.butterflyAladxWorldMatrixAnimated,
+            butterflyAlasxWorldMatrixAnimated: butterflyAnim.butterflyAlasxWorldMatrixAnimated,
+            butterflyBaseMatrixAnimated: butterflyAnim.butterflyBaseMatrixAnimated,
+        };
 
-        gl.clearColor(0.1, 0.1, 0.1, 1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        webglUtils.resizeCanvasToDisplaySize(gl.canvas);
+
         gl.enable(gl.DEPTH_TEST);
-        
-        // Attiviamo il Culling per nascondere i retri delle facce
         gl.enable(gl.CULL_FACE);     
         gl.cullFace(gl.BACK);
-
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
@@ -251,76 +351,50 @@ async function main() {
         const cameraMatrix = m4.lookAt(cameraPosition, target, up);
         const viewMatrix = m4.inverse(cameraMatrix);
 
-        let worldMatrix = m4.identity(); 
-        let worldInverseTransposeMatrix = m4.identity(); 
+        const lightWorldMatrix = m4.lookAt([lightState.x, lightState.y, lightState.z], [0, 0, 0], [0, 1, 0]);
+        const lightProjectionMatrix = m4.orthographic(-8, 8, -8, 8, 0.5, 25);
 
+        if (shadowState.enabled) {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
+            gl.viewport(0, 0, depthTextureSize, depthTextureSize);
+            gl.clear(gl.DEPTH_BUFFER_BIT);
+            gl.useProgram(depthProgramInfo.program);
+            gl.uniformMatrix4fv(gl.getUniformLocation(depthProgramInfo.program, "u_projection"), false, lightProjectionMatrix);
+            gl.uniformMatrix4fv(gl.getUniformLocation(depthProgramInfo.program, "u_view"), false, m4.inverse(lightWorldMatrix));
+            gl.uniformMatrix4fv(gl.getUniformLocation(depthProgramInfo.program, "u_world"), false, m4.identity());
+            gl.disable(gl.BLEND);
+            drawSceneObjects(depthProgramInfo, { flyWorldMatrices, butterflyWorldMatrices, cameraPosition }, { includeTransparent: true, shadowPass: true });
+        }
+
+        let textureMatrix = m4.identity();
+        textureMatrix = m4.translate(textureMatrix, 0.5, 0.5, 0.5);
+        textureMatrix = m4.scale(textureMatrix, 0.5, 0.5, 0.5);
+        textureMatrix = m4.multiply(textureMatrix, lightProjectionMatrix);
+        textureMatrix = m4.multiply(textureMatrix, m4.inverse(lightWorldMatrix));
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+        gl.clearColor(0.1, 0.1, 0.1, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        gl.useProgram(programInfo.program);
         gl.uniformMatrix4fv(locations.projection, false, projectionMatrix);
         gl.uniformMatrix4fv(locations.view, false, viewMatrix);
-        gl.uniformMatrix4fv(locations.world, false, worldMatrix);
-        gl.uniformMatrix4fv(locations.worldInverseTranspose, false, worldInverseTransposeMatrix);
-
+        gl.uniformMatrix4fv(locations.textureMatrix, false, textureMatrix);
+        gl.uniform1f(locations.bias, 0);
         gl.uniform3fv(locations.lightPos, [lightState.x, lightState.y, lightState.z]); 
         gl.uniform3fv(locations.viewPos, cameraPosition); 
         gl.uniform3fv(locations.ambient, [lightState.ambientR, lightState.ambientG, lightState.ambientB]); 
         gl.uniform3fv(locations.lightColor, [lightState.lightR, lightState.lightG, lightState.lightB]);
         gl.uniform3fv(locations.objectColor, [0.8, 0.8, 0.8]); 
+        gl.uniform1i(locations.diffuseMap, 0);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, depthTexture);
+        gl.uniform1i(locations.projectedTexture, 1);
+        gl.uniform1i(locations.shadowsEnabled, shadowState.enabled ? 1 : 0);
+        gl.activeTexture(gl.TEXTURE0);
 
-        // OGGETTI OPACHI 
-        gl.disable(gl.BLEND);
-        //gl.disable(gl.CULL_FACE);
-
-        drawObject(tavoloBuffers, tavoloTexture, 1.0);
-        drawObject(tappoBuffers, tappoTexture, 1.0);
-        drawObject(vinoBuffers, vinoTexture, 1.0);
-        drawObject(etichettaBuffers, etichettaTexture, 1.0);
-        // Mosca
-        drawObject(corpoBuffers, Fly_corpoTexture, 1.0, corpoWorldMatrix);
-        // Le ali sono piani: disabilitiamo temporaneamente il culling per renderle double-sided
-        gl.disable(gl.CULL_FACE);
-        drawObject(aladxBuffers, Fly_alaTexture, 1.0, aladxWorldMatrixAnimated);
-        drawObject(alasxBuffers, Fly_alaTexture, 1.0, alasxWorldMatrixAnimated);
-        gl.enable(gl.CULL_FACE);
-        drawObject(occhioBuffers, Fly_occhioTexture, 1.0, occhioWorldMatrix);
-
-        // Farfalla
-        drawObject(butterflyCorpoBuffers, butterflyTexture, 1.0, butterflyBaseMatrixAnimated);
-        // Le ali della farfalla sono piani: disabilitiamo temporaneamente il culling
-        gl.disable(gl.CULL_FACE);
-        drawObject(butterflyAladxBuffers, butterflyTexture, 1.0, butterflyAladxWorldMatrixAnimated);
-        drawObject(butterflyAlasxBuffers, butterflyTexture, 1.0, butterflyAlasxWorldMatrixAnimated);
-        gl.enable(gl.CULL_FACE);
-
-
-        //OGGETTI TRANSPARENTI
-        gl.enable(gl.BLEND);
-        gl.enable(gl.CULL_FACE);
-        gl.depthMask(false); 
-
-        // Ordina gli oggetti trasparenti per distanza dalla camera (dal più lontano al più vicino)
-        const transparentObjects = [
-            { buffers: fiascoBuffers, texture: fiascoTexture, center: [0, 0, -6] },
-            { buffers: bottiglioneBuffers, texture: bottiglioneTexture, center: [2.8, 0, -3.8] }
-        ];
-
-        transparentObjects.sort((a, b) => {
-            const distA = getObjectDistance(a.center, cameraPosition);
-            const distB = getObjectDistance(b.center, cameraPosition);
-            return distB - distA; // Ordina dal più lontano al più vicino
-        });
-
-        // 1° Passaggio: Disegna la parte interna/posteriore degli oggetti trasparenti (ordinati per distanza)
-        gl.cullFace(gl.FRONT); // Scarta le facce davanti, disegna quelle dietro
-        for (let obj of transparentObjects) {
-            drawObject(obj.buffers, obj.texture, 0.6);
-        }
-
-        // 2° Passaggio: Disegna la parte esterna/frontale degli oggetti trasparenti (stesso ordine)
-        gl.cullFace(gl.BACK);  // Scarta le facce dietro, sovrappone quelle davanti
-        for (let obj of transparentObjects) {
-            drawObject(obj.buffers, obj.texture, 0.6);
-        }
-
-        gl.depthMask(true);
+        drawSceneObjects(programInfo, { flyWorldMatrices, butterflyWorldMatrices, cameraPosition }, { includeTransparent: true });
 
         requestAnimationFrame(render);
     }

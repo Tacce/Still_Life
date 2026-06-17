@@ -27,7 +27,11 @@ function define_gui() {
         speed: 0.008
     };
     const defaultButterflyWingAnimationState = {
-        speed: 0.008
+        speed: 0.002
+    };
+
+    const defaultShadowState = {
+        enabled: true
     };
 
     function refreshControllers(folder) {
@@ -40,6 +44,7 @@ function define_gui() {
         Object.assign(lightState, defaultLightState);
         Object.assign(flyWingAnimationState, defaultFlyWingAnimationState);
         Object.assign(butterflyWingAnimationState, defaultButterflyWingAnimationState);
+        Object.assign(shadowState, defaultShadowState);
         refreshControllers(gui);
     }
 
@@ -66,8 +71,12 @@ function define_gui() {
     lightFolder.add(lightState, "lightB", 0.0, 1.0, 0.01).listen();
     lightFolder.open();
 
+    const shadowFolder = gui.addFolder("Shadow Mapping");
+    shadowFolder.add(shadowState, "enabled").name("Enable shadows").listen();
+    shadowFolder.open();
+
     const animationFolder = gui.addFolder("Animation");
     animationFolder.add(flyWingAnimationState, "speed", 0.0, 0.02, 0.0005).name("Fly wing speed").listen();
-    animationFolder.add(butterflyWingAnimationState, "speed", 0.0, 0.02, 0.0005).name("Butterfly wing speed").listen();
+    animationFolder.add(butterflyWingAnimationState, "speed", 0.0, 0.005, 0.001).name("Butterfly wing speed").listen();
     animationFolder.open();
 }
