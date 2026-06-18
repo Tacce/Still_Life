@@ -126,7 +126,7 @@
             
             // bias prova a bilanciare peter panning e acne
             float cosTheta = clamp(dot(normal, surfaceToLightDirection), 0.0, 1.0);
-            float bias = mix(0.01, 0.005, cosTheta);
+            float bias = mix(0.004, 0.005, cosTheta);
             float currentDepth = projectedTexcoord.z - bias;
 
             bool inRange =
@@ -183,6 +183,32 @@
         }
     </script>
 
+    <!-- SHADERS per Skybox -->
+    <script id="skybox-vertex-shader" type="x-shader/x-vertex">
+        attribute vec4 a_position;
+        varying vec4 v_position;
+        void main() {
+            v_position = a_position;
+            // Forziamo la profondità Z a 1.0 (il punto più lontano in clip space)
+            gl_Position = vec4(a_position.xy, 1.0, 1.0);
+        }
+    </script>
+
+    <script id="skybox-fragment-shader" type="x-shader/x-fragment">
+        precision mediump float;
+
+        uniform samplerCube u_skybox;
+        uniform mat4 u_viewDirectionProjectionInverse;
+
+        varying vec4 v_position;
+        void main() {
+            // Calcoliamo la direzione del raggio di sguardi partendo dal quad 2D
+            vec4 t = u_viewDirectionProjectionInverse * v_position;
+            // Campioniamo la texture cubica tridimensionale usando la direzione normalizzata
+            gl_FragColor = textureCube(u_skybox, normalize(t.xyz / t.w));
+        }
+    </script>
+
     <script src="resources/m4.js"></script>
     <script src="resources/webgl-utils.js"></script>
     <script src="resources/mesh_utils.js"></script> <!-- Assicurati di averlo! -->
@@ -190,6 +216,7 @@
     <script src="resources/dat.gui.js"></script>
     
     <script src="gui.js"></script>
+    <script src="skybox.js"></script>
     <script src="animation.js"></script>
     <script src="still_life.js"></script>
     <script src="input.js"></script>

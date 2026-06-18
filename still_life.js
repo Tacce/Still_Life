@@ -34,7 +34,23 @@ const shadowState = {
 };
 
 const appState = {
-    isPaused: false
+    isPaused: false,
+    currentSkybox: 'Nessuna'
+};
+
+const skyboxPresets = {
+    'Nessuna': {
+        url: null,
+        light: { x: -1.0, y: 10.0, z: 5.0, ambientR: 0.2, ambientG: 0.2, ambientB: 0.25, lightR: 1.0, lightG: 0.9, lightB: 0.8 }
+    },
+    'Giorno': {
+        url: 'resources/skybox/giorno.png',
+        light: { x: 9, y: 8.0, z: 15.3, ambientR: 0.42, ambientG: 0.38, ambientB: 0.35, lightR: 1.0, lightG: 0.95, lightB: 0.9 }
+    },
+    'Notte': {
+        url: 'resources/skybox/notte.png',
+        light: { x: -1.0, y: 9.0, z: -12.0, ambientR: 0., ambientG: 0., ambientB: 0.0, lightR: 0.15, lightG: 0.2, lightB: 0.35 } 
+    }
 };
 
 // --- FUNZIONE PONTE PER USARE GLM_UTILS ---
@@ -141,6 +157,28 @@ async function main() {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depthTexture, 0);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
+
+    const skyboxProgramInfo = webglUtils.createProgramInfo(gl, ["skybox-vertex-shader", "skybox-fragment-shader"]);
+    const quadVertices = createXYQuadVertices(); 
+    const quadBufferInfo = webglUtils.createBufferInfoFromArrays(gl, quadVertices);
+    
+    let activeSkyboxTexture = null;
+
+    window.changeEnvironment = function(presetName) {
+        const preset = skyboxPresets[presetName];
+        if (!preset) return;
+
+        Object.assign(lightState, preset.light);
+
+        if (presetName === 'Nessuna') {
+            activeSkyboxTexture = null;
+        } else {
+            activeSkyboxTexture = loadCubemapFromCross(gl, preset.url);
+        }
+    };
+
+    // Inizializziamo l'ambiente di default all'avvio
+    window.changeEnvironment(appState.currentSkybox);
     const program = programInfo.program; 
     gl.useProgram(program);
 
@@ -405,6 +443,27 @@ async function main() {
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         gl.clearColor(0.1, 0.1, 0.1, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        // --- RENDERING DELLA SKYBOX ---
+        if (appState.currentSkybox !== 'Nessuna' && activeSkyboxTexture !== null) {
+            let viewDirectionMatrix = m4.copy(viewMatrix);
+            viewDirectionMatrix[12] = 0;
+            viewDirectionMatrix[13] = 0;
+            viewDirectionMatrix[14] = 0;
+
+            let viewDirectionProjectionMatrix = m4.multiply(projectionMatrix, viewDirectionMatrix);
+            let viewDirectionProjectionInverseMatrix = m4.inverse(viewDirectionProjectionMatrix);
+
+            gl.depthFunc(gl.LEQUAL);
+            gl.useProgram(skyboxProgramInfo.program);
+            webglUtils.setBuffersAndAttributes(gl, skyboxProgramInfo, quadBufferInfo);
+            webglUtils.setUniforms(skyboxProgramInfo, {
+                u_viewDirectionProjectionInverse: viewDirectionProjectionInverseMatrix,
+                u_skybox: activeSkyboxTexture, // <--- Usa la nuova variabile
+            });
+            webglUtils.drawBufferInfo(gl, quadBufferInfo);
+            gl.depthFunc(gl.LESS); 
+        }
 
         gl.useProgram(programInfo.program);
         gl.uniformMatrix4fv(locations.projection, false, projectionMatrix);

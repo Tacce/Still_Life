@@ -11,18 +11,6 @@ function define_gui() {
         fovy: 45.0
     };
 
-    const defaultLightState = {
-        x: -1.0,
-        y: 10.0,
-        z: 5.0,
-        ambientR: 0.2,
-        ambientG: 0.2,
-        ambientB: 0.25,
-        lightR: 1.0,
-        lightG: 0.9,
-        lightB: 0.8
-    };
-
     const defaultFlyWingAnimationState = {
         speed: 0.008
     };
@@ -41,12 +29,17 @@ function define_gui() {
 
     function resetToDefaults() {
         Object.assign(cameraState, defaultCameraState);
-        Object.assign(lightState, defaultLightState);
         Object.assign(flyWingAnimationState, defaultFlyWingAnimationState);
         Object.assign(butterflyWingAnimationState, defaultButterflyWingAnimationState);
         Object.assign(shadowState, defaultShadowState);
+
+        const currentPreset = skyboxPresets[appState.currentSkybox];
+        if (currentPreset && currentPreset.light) {
+            Object.assign(lightState, currentPreset.light);
+        }
         refreshControllers(gui);
     }
+    
 
     gui.add({ reset: resetToDefaults }, "reset").name("Reset defaults");
 
@@ -79,4 +72,18 @@ function define_gui() {
     animationFolder.add(flyWingAnimationState, "speed", 0.0, 0.02, 0.0005).name("Fly wing speed").listen();
     animationFolder.add(butterflyWingAnimationState, "speed", 0.0, 0.005, 0.001).name("Butterfly wing speed").listen();
     animationFolder.open();
+
+    const envFolder = gui.addFolder("Ambiente & Skybox");
+    
+    envFolder.add(appState, "currentSkybox", ["Nessuna", "Giorno", "Notte"])
+        .name("Skybox")
+        .onChange((value) => {
+            if (window.changeEnvironment) {
+                window.changeEnvironment(value);
+                // Forza la GUI ad aggiornare i cursori della luce
+                refreshControllers(gui);
+            }
+        });
+        
+    envFolder.open();
 }
