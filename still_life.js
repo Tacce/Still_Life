@@ -53,6 +53,10 @@ const skyboxPresets = {
     }
 };
 
+const renderStyleState = {
+    shadingType: 'Phong' 
+};
+
 // --- FUNZIONE PONTE PER USARE GLM_UTILS ---
 async function loadMeshWithGLM(url) {
     const response = await fetch(url);
@@ -60,15 +64,17 @@ async function loadMeshWithGLM(url) {
 
     let mesh = new subd_mesh();
     glmReadOBJ(textData, mesh);
-    
+
     // Array piatti per WebGL
     let positions = [];
     let normals = [];
     let texCoords = [];
+    let flatNormals = [];
 
     // glm_utils usa array con indice di partenza 1 (il primo elemento è fittizio)
     for (let i = 1; i <= mesh.nface; i++) {
         let f = mesh.face[i];
+        let fNorm = mesh.facetnorms[f.normalFaceIndex];
         
         // n_v_e indica i vertici per faccia (3 per i triangoli)
         for (let j = 0; j < f.n_v_e; j++) {
@@ -91,13 +97,16 @@ async function loadMeshWithGLM(url) {
             } else {
                 texCoords.push(0, 0); // Sicurezza
             }
+
+            flatNormals.push(fNorm.i, fNorm.j, fNorm.k);
         }
     }
 
     return {
-    position: { numComponents: 3, data: new Float32Array(positions) },
-    normal:   { numComponents: 3, data: new Float32Array(normals) },
-    texcoord: { numComponents: 2, data: new Float32Array(texCoords) },
+        position:   { numComponents: 3, data: new Float32Array(positions) },
+        normal:     { numComponents: 3, data: new Float32Array(normals) },
+        texcoord:   { numComponents: 2, data: new Float32Array(texCoords) },
+        flatNormal: { numComponents: 3, data: new Float32Array(flatNormals) }
     };
 }
 
@@ -185,6 +194,7 @@ async function main() {
     const locations = {
         position: gl.getAttribLocation(program, "a_position"),
         normal: gl.getAttribLocation(program, "a_normal"),
+        flatNormal: gl.getAttribLocation(program, "a_flatNormal"),
         texcoord: gl.getAttribLocation(program, "a_texcoord"),
         projection: gl.getUniformLocation(program, "u_projection"),
         view: gl.getUniformLocation(program, "u_view"),
@@ -201,7 +211,12 @@ async function main() {
         bias: gl.getUniformLocation(program, "u_bias"),
         shadowsEnabled: gl.getUniformLocation(program, "u_shadowsEnabled"),
         alpha: gl.getUniformLocation(program, "u_alpha"),
-        isDoubleSided: gl.getUniformLocation(program, "u_isDoubleSided")
+        isDoubleSided: gl.getUniformLocation(program, "u_isDoubleSided"),
+        useFlatShading: gl.getUniformLocation(program, "u_useFlatShading"),
+        Ka: gl.getUniformLocation(program, "u_Ka"),
+        Kd: gl.getUniformLocation(program, "u_Kd"),
+        Ks: gl.getUniformLocation(program, "u_Ks"),
+        shininess: gl.getUniformLocation(program, "u_shininess")
     };
 
     // USIAMO LA NUOVA FUNZIONE PONTE CON GLM_UTILS
@@ -266,8 +281,13 @@ async function main() {
     initInputHandlers(canvas);
     define_gui();
 
+    const defaultMaterial = { Ka: 1.0, Kd: 1.0, Ks: 0.2, shininess: 30.0 };
+    const matWood = { Ka: 1.0, Kd: 0.9, Ks: 0.05, shininess: 10.0 }; 
+    const matGlass = { Ka: 1.0, Kd: 0.5, Ks: 1.5, shininess: 150.0 }; 
+    const matPlastic = { Ka: 1.0, Kd: 0.8, Ks: 0.5, shininess: 50.0 };
+
     // Helper per disegnare velocemente nel render loop
-    function drawObject(currentProgramInfo, buffers, texture, alpha, worldMatrix = m4.identity(), isDoubleSided = false) {
+function drawObject(currentProgramInfo, buffers, texture, alpha, material = defaultMaterial, worldMatrix = m4.identity(), isDoubleSided = false,) {
         webglUtils.setBuffersAndAttributes(gl, currentProgramInfo, buffers);
         gl.uniformMatrix4fv(gl.getUniformLocation(currentProgramInfo.program, "u_world"), false, worldMatrix);
 
@@ -280,6 +300,11 @@ async function main() {
             gl.bindTexture(gl.TEXTURE_2D, texture);
             gl.uniform1f(locations.alpha, alpha);
             gl.uniform1i(locations.isDoubleSided, isDoubleSided ? 1 : 0);
+            gl.uniform1i(locations.useFlatShading, renderStyleState.shadingType === 'Flat' ? 1 : 0);
+            gl.uniform1f(locations.Ka, material.Ka);
+            gl.uniform1f(locations.Kd, material.Kd);
+            gl.uniform1f(locations.Ks, material.Ks);
+            gl.uniform1f(locations.shininess, material.shininess);
         }
 
         webglUtils.drawBufferInfo(gl, buffers);    
@@ -298,23 +323,23 @@ async function main() {
         const shadowPass = options.shadowPass === true;
         const { flyWorldMatrices, butterflyWorldMatrices, cameraPosition } = sceneState;
 
-        drawObject(currentProgramInfo, tavoloBuffers, tavoloTexture, 1.0);
-        drawObject(currentProgramInfo, tappoBuffers, tappoTexture, 1.0);
-        drawObject(currentProgramInfo, vinoBuffers, vinoTexture, 1.0);
+        drawObject(currentProgramInfo, tavoloBuffers, tavoloTexture, 1.0, matWood);
+        drawObject(currentProgramInfo, tappoBuffers, tappoTexture, 1.0, matWood);
+        drawObject(currentProgramInfo, vinoBuffers, vinoTexture, 1.0, matGlass);
         if (!shadowPass) {
             drawObject(currentProgramInfo, etichettaBuffers, etichettaTexture, 1.0);
         }
         
-        drawObject(currentProgramInfo, corpoBuffers, Fly_corpoTexture, 1.0, flyWorldMatrices.corpoWorldMatrix);
-        drawObject(currentProgramInfo, aladxBuffers, Fly_alaTexture, 1.0, flyWorldMatrices.aladxWorldMatrixAnimated);
-        drawObject(currentProgramInfo, alasxBuffers, Fly_alaTexture, 1.0, flyWorldMatrices.alasxWorldMatrixAnimated);
-        drawObject(currentProgramInfo, occhioBuffers, Fly_occhioTexture, 1.0, flyWorldMatrices.occhioWorldMatrix);
+        drawObject(currentProgramInfo, corpoBuffers, Fly_corpoTexture, 1.0,defaultMaterial, flyWorldMatrices.corpoWorldMatrix);
+        drawObject(currentProgramInfo, aladxBuffers, Fly_alaTexture, 1.0, defaultMaterial, flyWorldMatrices.aladxWorldMatrixAnimated);
+        drawObject(currentProgramInfo, alasxBuffers, Fly_alaTexture, 1.0, defaultMaterial, flyWorldMatrices.alasxWorldMatrixAnimated);
+        drawObject(currentProgramInfo, occhioBuffers, Fly_occhioTexture, 1.0, defaultMaterial, flyWorldMatrices.occhioWorldMatrix);
         
-        drawObject(currentProgramInfo, butterflyCorpoBuffers, butterflyTexture, 1.0, butterflyWorldMatrices.butterflyBaseMatrixAnimated);
+        drawObject(currentProgramInfo, butterflyCorpoBuffers, butterflyTexture, 1.0, defaultMaterial, butterflyWorldMatrices.butterflyBaseMatrixAnimated);
         
         gl.disable(gl.CULL_FACE);
-        drawObject(currentProgramInfo, butterflyAladxBuffers, butterflyTexture, 1.0, butterflyWorldMatrices.butterflyAladxWorldMatrixAnimated, true);
-        drawObject(currentProgramInfo, butterflyAlasxBuffers, butterflyTexture, 1.0, butterflyWorldMatrices.butterflyAlasxWorldMatrixAnimated, true);
+        drawObject(currentProgramInfo, butterflyAladxBuffers, butterflyTexture, 1.0, defaultMaterial, butterflyWorldMatrices.butterflyAladxWorldMatrixAnimated, true);
+        drawObject(currentProgramInfo, butterflyAlasxBuffers, butterflyTexture, 1.0, defaultMaterial, butterflyWorldMatrices.butterflyAlasxWorldMatrixAnimated, true);
         gl.enable(gl.CULL_FACE);
 
 
@@ -347,11 +372,11 @@ async function main() {
         for (const obj of transparentObjects) {
             // Pass 1: facce posteriori
             gl.cullFace(gl.FRONT);
-            drawObject(currentProgramInfo, obj.buffers, obj.texture, 0.6);
+            drawObject(currentProgramInfo, obj.buffers, obj.texture, 0.6, matGlass);
             
             // Pass 2: facce frontali  
             gl.cullFace(gl.BACK);
-            drawObject(currentProgramInfo, obj.buffers, obj.texture, 0.6);
+            drawObject(currentProgramInfo, obj.buffers, obj.texture, 0.6, matGlass);
         }
         gl.depthMask(true);
     }

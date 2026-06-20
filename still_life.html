@@ -57,6 +57,7 @@
     <script id="3d-vertex-shader" type="x-shader/x-vertex">
         attribute vec4 a_position;
         attribute vec3 a_normal;
+        attribute vec3 a_flatNormal;
         attribute vec2 a_texcoord;
 
         uniform mat4 u_projection;
@@ -66,6 +67,7 @@
         uniform mat4 u_textureMatrix;
 
         varying vec3 v_normal;
+        varying vec3 v_flatNormal;
         varying vec2 v_texcoord;
         varying vec3 v_surfaceWorldPosition;
         varying vec4 v_projectedTexcoord;
@@ -74,7 +76,11 @@
             vec4 worldPosition = u_world * a_position;
             gl_Position = u_projection * u_view * worldPosition;
             v_surfaceWorldPosition = worldPosition.xyz;
-            v_normal = mat3(u_worldInverseTranspose) * a_normal;
+
+            mat3 normalMatrix = mat3(u_worldInverseTranspose);
+            v_normal = normalMatrix * a_normal;
+            v_flatNormal = normalMatrix * a_flatNormal;
+
             v_texcoord = a_texcoord;
             v_projectedTexcoord = u_textureMatrix * worldPosition;
         }
@@ -85,6 +91,7 @@
         precision highp float;
 
         varying vec3 v_normal;
+        varying vec3 v_flatNormal;
         varying vec2 v_texcoord;
         varying vec3 v_surfaceWorldPosition;
         varying vec4 v_projectedTexcoord;
@@ -93,38 +100,37 @@
         uniform vec3 u_viewWorldPosition;
         uniform vec3 u_ambientLight;
         uniform vec3 u_lightColor;
-        uniform bool u_isDoubleSided;
+
+        uniform bool u_useFlatShading;
+        uniform float u_Ka;
+        uniform float u_Kd;
+        uniform float u_Ks;
+        uniform float u_shininess;
         
+        uniform bool u_isDoubleSided;
         uniform sampler2D u_diffuseMap;
         uniform sampler2D u_projectedTexture;
         uniform float u_bias;
         uniform bool u_shadowsEnabled;
-        uniform float u_alpha; // 1.0 solido, 0.6 vetro
+        uniform float u_alpha; 
 
         void main() {
-            vec3 normal = normalize(v_normal);
+            vec3 normal;
 
-            // Inverti la normale solo se stiamo guardando da dietro e il flag double-sided è attivo //u_isDoubleSided && 
-            if (!gl_FrontFacing) {
+            if (u_useFlatShading) {
+                normal = normalize(v_flatNormal);
+            } else {
+                normal = normalize(v_normal);
+            }
+
+            if ( !gl_FrontFacing) { //u_isDoubleSided &&
                 normal = -normal;
             }
 
             vec3 surfaceToLightDirection = normalize(u_lightWorldPosition - v_surfaceWorldPosition);
             vec3 surfaceToViewDirection = normalize(u_viewWorldPosition - v_surfaceWorldPosition);
-            vec3 halfVector = normalize(surfaceToLightDirection + surfaceToViewDirection);
-
-            float light = max(dot(normal, surfaceToLightDirection), 0.0);
-            float specular = 0.0;
-            if (light > 0.0) {
-                specular = pow(max(dot(normal, halfVector), 0.0), 50.0);
-            }
-
+            
             vec3 projectedTexcoord = v_projectedTexcoord.xyz / v_projectedTexcoord.w;
-            
-            //float bias = max(0.01 * (1.0 - dot(normal, surfaceToLightDirection)), 0.005);
-            //float currentDepth = projectedTexcoord.z - bias;
-            
-            // bias prova a bilanciare peter panning e acne
             float cosTheta = clamp(dot(normal, surfaceToLightDirection), 0.0, 1.0);
             float bias = mix(0.004, 0.005, cosTheta);
             float currentDepth = projectedTexcoord.z - bias;
@@ -133,14 +139,14 @@
                 projectedTexcoord.x >= 0.0 && projectedTexcoord.x <= 1.0 &&
                 projectedTexcoord.y >= 0.0 && projectedTexcoord.y <= 1.0;
 
-            float shadowLight = 1.0;
+            /*float shadowLight = 1.0;
             if (u_shadowsEnabled) {
                 float projectedDepth = texture2D(u_projectedTexture, projectedTexcoord.xy).r;
                 shadowLight = (inRange && projectedDepth <= currentDepth) ? 0.0 : 1.0;
-            }
-            
+            }*/
+
             // Soft shadows con PCF
-            /*float shadowLight = 0.0;
+            float shadowLight = 0.0;
             if (u_shadowsEnabled) {
                 float texelSize = 1.0 / 2048.0;
                 for (int x = -1; x <= 1; x++) {
@@ -153,12 +159,30 @@
                 shadowLight /= 9.0;
             } else {
                 shadowLight = 1.0;
-            }*/
+            }
+
+            // --- PHONG ---
 
             vec4 texColor = texture2D(u_diffuseMap, v_texcoord);
-            vec3 finalColor = (u_ambientLight * texColor.rgb) + 
-                              (texColor.rgb * light * u_lightColor * shadowLight) + 
-                              (specular * u_lightColor * shadowLight);
+
+            // Componente Diffusa (Legge di Lambert)
+            float lambertian = max(dot(normal, surfaceToLightDirection), 0.0);
+
+            // Componente Speculare
+            float specular = 0.0;
+
+            if (lambertian > 0.0) {
+                vec3 R = reflect(-surfaceToLightDirection, normal);
+                float specAngle = max(dot(R, surfaceToViewDirection), 0.0);
+                specular = pow(specAngle, u_shininess);
+            }
+
+            // Miscelazione finale dei materiali
+            vec3 ambientTerm = u_Ka * u_ambientLight * texColor.rgb;
+            vec3 diffuseTerm = u_Kd * lambertian * texColor.rgb * u_lightColor * shadowLight;
+            vec3 specularTerm = u_Ks * specular * u_lightColor * shadowLight;
+
+            vec3 finalColor = ambientTerm + diffuseTerm + specularTerm;
 
             gl_FragColor = vec4(finalColor, texColor.a * u_alpha);
         }

@@ -2,6 +2,8 @@ function define_gui() {
     const gui = new dat.GUI();
     gui.width = 320;
 
+    let shadingToggleController = null;
+
     const defaultCameraState = {
         angleX: 0.17,
         angleY: -1.5,
@@ -39,10 +41,9 @@ function define_gui() {
         }
         refreshControllers(gui);
     }
-    
 
     gui.add({ reset: resetToDefaults }, "reset").name("Reset defaults");
-
+    
     const cameraFolder = gui.addFolder("Camera");
     cameraFolder.add(cameraState, "angleX", -1.5, 1.5, 0.01).listen();
     cameraFolder.add(cameraState, "angleY", -Math.PI, Math.PI, 0.01).listen();
@@ -64,9 +65,12 @@ function define_gui() {
     lightFolder.add(lightState, "lightB", 0.0, 1.0, 0.01).listen();
     lightFolder.open();
 
-    const shadowFolder = gui.addFolder("Shadow Mapping");
-    shadowFolder.add(shadowState, "enabled").name("Enable shadows").listen();
-    shadowFolder.open();
+    const specialFolder = gui.addFolder("Advanced Rendering");
+    specialFolder.add(shadowState, "enabled").name("Enable shadows").listen();
+    specialFolder.add(renderStyleState, "shadingType", ["Phong", "Flat"]).name("Stile Shading").listen();
+    specialFolder.open();
+
+
 
     const animationFolder = gui.addFolder("Animation");
     animationFolder.add(flyWingAnimationState, "speed", 0.0, 0.02, 0.0005).name("Fly wing speed").listen();
