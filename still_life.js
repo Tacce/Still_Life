@@ -226,6 +226,7 @@ async function main() {
     const vinoMesh = await loadMeshWithGLM('resources/obj/Vino.obj');
     const tappoMesh = await loadMeshWithGLM('resources/obj/Tappo.obj');
     const etichettaMesh = await loadMeshWithGLM('resources/obj/Etichetta.obj');
+    const tovagliaMesh = await loadMeshWithGLM('resources/obj/Tovaglia.obj');
 
     // Mosca
     const Fly_corpoMesh = await loadMeshWithGLM('resources/obj/Fly_body.obj');
@@ -244,6 +245,7 @@ async function main() {
     const vinoBuffers = webglUtils.createBufferInfoFromArrays(gl, vinoMesh);
     const tappoBuffers = webglUtils.createBufferInfoFromArrays(gl, tappoMesh);
     const etichettaBuffers = webglUtils.createBufferInfoFromArrays(gl, etichettaMesh);
+    const tovagliaBuffers = webglUtils.createBufferInfoFromArrays(gl, tovagliaMesh);
     const corpoBuffers = webglUtils.createBufferInfoFromArrays(gl, Fly_corpoMesh);
     const aladxBuffers = webglUtils.createBufferInfoFromArrays(gl, Fly_aladxMesh);
     const alasxBuffers = webglUtils.createBufferInfoFromArrays(gl, Fly_alasxMesh);
@@ -259,6 +261,7 @@ async function main() {
     const vinoTexture = createSolidColorTexture(gl, 15, 0, 0, 255);
     const tappoTexture = loadTexture(gl, 'resources/texture/sughero.jpg');
     const etichettaTexture = loadTexture(gl, 'resources/texture/Etichetta.png');
+    const tovagliaTexture = loadTexture(gl, 'resources/texture/tovaglia.jpg');
    
     const Fly_corpoTexture = createSolidColorTexture(gl, 50, 50, 50, 255);
     const Fly_alaTexture = loadTexture(gl, 'resources/texture/wings.png');
@@ -285,6 +288,7 @@ async function main() {
     const matWood = { Ka: 1.0, Kd: 0.9, Ks: 0.05, shininess: 10.0 }; 
     const matGlass = { Ka: 1.0, Kd: 0.5, Ks: 1.5, shininess: 150.0 }; 
     const matPlastic = { Ka: 1.0, Kd: 0.8, Ks: 0.5, shininess: 50.0 };
+    const matCloth = { Ka: 1.0, Kd: 0.8, Ks: 0.05, shininess: 2.0 };
 
     // Helper per disegnare velocemente nel render loop
 function drawObject(currentProgramInfo, buffers, texture, alpha, material = defaultMaterial, worldMatrix = m4.identity(), isDoubleSided = false,) {
@@ -329,6 +333,7 @@ function drawObject(currentProgramInfo, buffers, texture, alpha, material = defa
         if (!shadowPass) {
             drawObject(currentProgramInfo, etichettaBuffers, etichettaTexture, 1.0);
         }
+        drawObject(currentProgramInfo, tovagliaBuffers, tovagliaTexture, 1.0, matCloth);
         
         drawObject(currentProgramInfo, corpoBuffers, Fly_corpoTexture, 1.0,defaultMaterial, flyWorldMatrices.corpoWorldMatrix);
         drawObject(currentProgramInfo, aladxBuffers, Fly_alaTexture, 1.0, defaultMaterial, flyWorldMatrices.aladxWorldMatrixAnimated);
