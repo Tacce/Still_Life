@@ -9,7 +9,7 @@ function define_gui() {
         angleY: -1.5,
         D: 12.0,
         near: 0.1,
-        far: 100.0,
+        far: 200.0,
         fovy: 45.0
     };
 

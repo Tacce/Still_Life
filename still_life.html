@@ -233,6 +233,86 @@
         }
     </script>
 
+    <!-- SHADERS per il Piano del Pavimento -->
+    <script id="floor-vertex-shader" type="x-shader/x-vertex">
+        attribute vec4 a_position;
+        attribute vec2 a_texcoord;
+
+        uniform mat4 u_projection;
+        uniform mat4 u_view;
+        uniform mat4 u_world;
+        uniform mat4 u_textureMatrix; // 
+        varying vec3 v_worldPos;
+        varying vec2 v_texcoord;
+        varying vec4 v_projectedTexcoord; 
+
+        void main() {
+            vec4 worldPos = u_world * a_position;
+            v_worldPos = worldPos.xyz;
+            v_texcoord = a_texcoord * 100.0; // Moltiplicatore per non sgranare l'erba
+            
+            v_projectedTexcoord = u_textureMatrix * worldPos; //  (Calcola la pos. dell'ombra)
+            
+            gl_Position = u_projection * u_view * worldPos;
+        }
+    </script>
+
+    <script id="floor-fragment-shader" type="x-shader/x-fragment">
+        precision mediump float;
+
+        uniform sampler2D u_floorTexture;
+        uniform samplerCube u_skybox;
+        uniform sampler2D u_projectedTexture; 
+        uniform vec3 u_cameraPos;
+        uniform bool u_shadowsEnabled;        
+
+        varying vec3 v_worldPos;
+        varying vec2 v_texcoord;
+        varying vec4 v_projectedTexcoord;    
+
+        void main() {
+            vec4 floorColor = texture2D(u_floorTexture, v_texcoord);
+
+            // --- INIZIO CALCOLO OMBRE SUL PAVIMENTO ---
+            vec3 projectedTexcoord = v_projectedTexcoord.xyz / v_projectedTexcoord.w;
+            float currentDepth = projectedTexcoord.z - 0.00001; // Bias fisso per evitare acne sul piano
+
+            bool inRange =
+                projectedTexcoord.x >= 0.0 && projectedTexcoord.x <= 1.0 &&
+                projectedTexcoord.y >= 0.0 && projectedTexcoord.y <= 1.0;
+
+            float shadowLight = 0.0;
+            if (u_shadowsEnabled) {
+                float texelSize = 1.0 / 2048.0;
+                for (int x = -1; x <= 1; x++) {
+                    for (int y = -1; y <= 1; y++) {
+                        vec2 offset = vec2(float(x), float(y)) * texelSize;
+                        float projectedDepth = texture2D(u_projectedTexture, projectedTexcoord.xy + offset).r;
+                        shadowLight += (inRange && projectedDepth <= currentDepth) ? 0.0 : 1.0;
+                    }
+                }
+                shadowLight /= 9.0;
+            } else {
+                shadowLight = 1.0;
+            }
+            
+            // Scuriamo il prato dove c'è l'ombra (non nero totale, lasciamo un 40% di luce ambientale)
+            float ambientShadow = mix(0.4, 1.0, shadowLight);
+            floorColor.rgb *= ambientShadow;
+            // --- FINE CALCOLO OMBRE ---
+
+            // Sfumatura Skybox
+            vec3 dir = normalize(v_worldPos - u_cameraPos);
+            vec4 skyColor = textureCube(u_skybox, dir);
+
+            float dist = length(v_worldPos.xz - u_cameraPos.xz);
+            float fogFactor = smoothstep(20.0, 200.0, dist);
+
+            vec3 finalColor = mix(floorColor.rgb, skyColor.rgb, fogFactor);
+            gl_FragColor = vec4(finalColor, 1.0);
+        }
+    </script>
+
     <script src="resources/m4.js"></script>
     <script src="resources/webgl-utils.js"></script>
     <script src="resources/mesh_utils.js"></script> <!-- Assicurati di averlo! -->

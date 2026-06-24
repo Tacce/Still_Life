@@ -5,7 +5,7 @@ const cameraState = {
     angleY: -1.5,
     D: 12.0,
     near: 0.1,
-    far: 100.0,
+    far: 200.0,
     fovy: 45.0
 };
 
@@ -41,14 +41,17 @@ const appState = {
 const skyboxPresets = {
     'Nessuna': {
         url: null,
+        floor_url: null,
         light: { x: -1.0, y: 10.0, z: 5.0, ambientR: 0.2, ambientG: 0.2, ambientB: 0.25, lightR: 1.0, lightG: 0.9, lightB: 0.8 }
     },
     'Giorno': {
         url: 'resources/skybox/giorno.png',
+        floor_url: 'resources/texture/floor_giorno.png',
         light: { x: 9, y: 8.0, z: 15.3, ambientR: 0.42, ambientG: 0.38, ambientB: 0.35, lightR: 1.0, lightG: 0.95, lightB: 0.9 }
     },
     'Notte': {
         url: 'resources/skybox/notte.png',
+        floor_url: 'resources/texture/floor_notte.png',
         light: { x: -1.0, y: 9.0, z: -12.0, ambientR: 0., ambientG: 0., ambientB: 0.0, lightR: 0.15, lightG: 0.2, lightB: 0.35 } 
     }
 };
@@ -173,6 +176,10 @@ async function main() {
     
     let activeSkyboxTexture = null;
 
+    const floorProgramInfo = webglUtils.createProgramInfo(gl, ["floor-vertex-shader", "floor-fragment-shader"]);
+    const floorBufferInfo = createFloorBufferInfo(gl);
+    let activeFloorTexture = null;
+    
     window.changeEnvironment = function(presetName) {
         const preset = skyboxPresets[presetName];
         if (!preset) return;
@@ -181,8 +188,10 @@ async function main() {
 
         if (presetName === 'Nessuna') {
             activeSkyboxTexture = null;
+            activeFloorTexture = null;
         } else {
             activeSkyboxTexture = loadCubemapFromCross(gl, preset.url);
+            activeFloorTexture = loadTexture(gl, preset.floor_url);
         }
     };
 
@@ -448,8 +457,8 @@ function drawObject(currentProgramInfo, buffers, texture, alpha, material = defa
             -frustumSize, frustumSize, 
             0.5, lightDist + sceneRadius
         );*/
-        const lightProjectionMatrix = m4.orthographic(-10, 10, -10, 10, 0.5, 30);
-
+        //const lightProjectionMatrix = m4.orthographic(-10, 10, -10, 10, 0.5, 30);
+        const lightProjectionMatrix = m4.orthographic(-15, 15, -15, 15, 0.5, 40);
 
         if (shadowState.enabled) {
             gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
@@ -493,6 +502,42 @@ function drawObject(currentProgramInfo, buffers, texture, alpha, material = defa
             });
             webglUtils.drawBufferInfo(gl, quadBufferInfo);
             gl.depthFunc(gl.LESS); 
+        }
+
+        // --- RENDERING DEL PIANO ---
+        if (appState.currentSkybox !== 'Nessuna' && activeSkyboxTexture !== null) {
+            gl.depthFunc(gl.LESS);
+            gl.useProgram(floorProgramInfo.program);
+            webglUtils.setBuffersAndAttributes(gl, floorProgramInfo, floorBufferInfo);
+
+            gl.uniformMatrix4fv(gl.getUniformLocation(floorProgramInfo.program, "u_projection"), false, projectionMatrix);
+            gl.uniformMatrix4fv(gl.getUniformLocation(floorProgramInfo.program, "u_view"), false, viewMatrix);
+            gl.uniformMatrix4fv(gl.getUniformLocation(floorProgramInfo.program, "u_world"), false, m4.identity());
+            gl.uniform3fv(gl.getUniformLocation(floorProgramInfo.program, "u_cameraPos"), cameraPosition);
+
+            // NUOVO: Passiamo la matrice per proiettare l'ombra e lo stato dell'interruttore
+            gl.uniformMatrix4fv(gl.getUniformLocation(floorProgramInfo.program, "u_textureMatrix"), false, textureMatrix);
+            gl.uniform1i(gl.getUniformLocation(floorProgramInfo.program, "u_shadowsEnabled"), shadowState.enabled ? 1 : 0);
+            gl.uniform3fv(gl.getUniformLocation(floorProgramInfo.program, "u_lightDir"), [lightState.x, lightState.y, lightState.z]);
+
+            // Texture 0: L'erba
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, activeFloorTexture);
+            gl.uniform1i(gl.getUniformLocation(floorProgramInfo.program, "u_floorTexture"), 0);
+
+            // NUOVO: Texture 1 (La mappa di profondità delle ombre)
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, depthTexture);
+            gl.uniform1i(gl.getUniformLocation(floorProgramInfo.program, "u_projectedTexture"), 1);
+
+            // Texture 2: Skybox
+            gl.activeTexture(gl.TEXTURE2);
+            gl.bindTexture(gl.TEXTURE_CUBE_MAP, activeSkyboxTexture);
+            gl.uniform1i(gl.getUniformLocation(floorProgramInfo.program, "u_skybox"), 2);
+
+            webglUtils.drawBufferInfo(gl, floorBufferInfo);
+
+            gl.activeTexture(gl.TEXTURE0); // Ripristino sicurezza
         }
 
         gl.useProgram(programInfo.program);

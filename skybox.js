@@ -95,3 +95,24 @@ function createXYQuadVertices() {
         indices: [ 0, 1, 2, 2, 1, 3 ],
     };
 }
+
+function createFloorBufferInfo(gl) {
+    const size = 1000.0;
+    const y = -10.9; 
+
+    return webglUtils.createBufferInfoFromArrays(gl, {
+        position: { numComponents: 3, data: new Float32Array([
+            -size, y, -size,
+             size, y, -size,
+            -size, y,  size,
+             size, y,  size,
+        ])},
+        texcoord: { numComponents: 2, data: new Float32Array([
+            0, 0,
+            1, 0,
+            0, 1,
+            1, 1,  // repeat x4 della texture
+        ])},
+        indices: [0, 2, 1, 1, 2, 3],
+    });
+}
