@@ -59,6 +59,7 @@
         attribute vec3 a_normal;
         attribute vec3 a_flatNormal;
         attribute vec2 a_texcoord;
+        attribute vec3 a_tangent; 
 
         uniform mat4 u_projection;
         uniform mat4 u_view;
@@ -71,6 +72,7 @@
         varying vec2 v_texcoord;
         varying vec3 v_surfaceWorldPosition;
         varying vec4 v_projectedTexcoord;
+        varying vec3 v_tangent; 
 
         void main() {
             vec4 worldPosition = u_world * a_position;
@@ -80,6 +82,7 @@
             mat3 normalMatrix = mat3(u_worldInverseTranspose);
             v_normal = normalMatrix * a_normal;
             v_flatNormal = normalMatrix * a_flatNormal;
+            v_tangent = normalMatrix * a_tangent;
 
             v_texcoord = a_texcoord;
             v_projectedTexcoord = u_textureMatrix * worldPosition;
@@ -95,6 +98,7 @@
         varying vec2 v_texcoord;
         varying vec3 v_surfaceWorldPosition;
         varying vec4 v_projectedTexcoord;
+        varying vec3 v_tangent; 
 
         uniform vec3 u_lightWorldPosition;
         uniform vec3 u_viewWorldPosition;
@@ -113,6 +117,17 @@
         uniform float u_bias;
         uniform bool u_shadowsEnabled;
         uniform float u_alpha; 
+        
+        uniform sampler2D u_bumpMap;      
+        uniform bool u_useBumpMap;
+        uniform float u_bumpStrength;
+        uniform vec2 u_bumpMapSize;
+        uniform float u_bumpScale;                
+
+        float sampleBump(sampler2D map, vec2 uv, vec2 mapSize) {
+            vec2 texel = floor(uv * mapSize) + 0.5;
+            return texture2D(map, texel / mapSize).r;
+        }
 
         void main() {
             vec3 normal;
@@ -125,6 +140,27 @@
 
             if ( !gl_FrontFacing) { //u_isDoubleSided &&
                 normal = -normal;
+            }
+
+            //BUMP MAPPING
+            if (u_useBumpMap) {
+                // Ricostruisci tangent/binormal dalla normale in world space
+                // invece di usare v_tangent che varia tra le facce
+                vec3 n = normal;
+                
+                // Scegliamo un vettore "up" che non sia parallelo alla normale
+                vec3 up = abs(n.y) < 0.999 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+                vec3 tangent  = normalize(cross(up, n));
+                vec3 binormal = cross(n, tangent);
+
+                vec2 texelSize = u_bumpScale / u_bumpMapSize;
+
+                float bm0     = sampleBump(u_bumpMap, v_texcoord, u_bumpMapSize);
+                float bmRight = sampleBump(u_bumpMap, v_texcoord + vec2(texelSize.x, 0.0), u_bumpMapSize);
+                float bmUp    = sampleBump(u_bumpMap, v_texcoord + vec2(0.0, texelSize.y), u_bumpMapSize);
+
+                vec3 bumpVector = (bmRight - bm0) * tangent + (bmUp - bm0) * binormal;
+                normal = normalize(normal + u_bumpStrength * bumpVector);
             }
 
             vec3 surfaceToLightDirection = normalize(u_lightWorldPosition - v_surfaceWorldPosition);
@@ -262,54 +298,60 @@
 
         uniform sampler2D u_floorTexture;
         uniform samplerCube u_skybox;
-        uniform sampler2D u_projectedTexture; 
         uniform vec3 u_cameraPos;
-        uniform bool u_shadowsEnabled;        
 
         varying vec3 v_worldPos;
         varying vec2 v_texcoord;
-        varying vec4 v_projectedTexcoord;    
 
         void main() {
             vec4 floorColor = texture2D(u_floorTexture, v_texcoord);
 
-            // --- INIZIO CALCOLO OMBRE SUL PAVIMENTO ---
-            vec3 projectedTexcoord = v_projectedTexcoord.xyz / v_projectedTexcoord.w;
-            float currentDepth = projectedTexcoord.z - 0.00001; // Bias fisso per evitare acne sul piano
-
-            bool inRange =
-                projectedTexcoord.x >= 0.0 && projectedTexcoord.x <= 1.0 &&
-                projectedTexcoord.y >= 0.0 && projectedTexcoord.y <= 1.0;
-
-            float shadowLight = 0.0;
-            if (u_shadowsEnabled) {
-                float texelSize = 1.0 / 2048.0;
-                for (int x = -1; x <= 1; x++) {
-                    for (int y = -1; y <= 1; y++) {
-                        vec2 offset = vec2(float(x), float(y)) * texelSize;
-                        float projectedDepth = texture2D(u_projectedTexture, projectedTexcoord.xy + offset).r;
-                        shadowLight += (inRange && projectedDepth <= currentDepth) ? 0.0 : 1.0;
-                    }
-                }
-                shadowLight /= 9.0;
-            } else {
-                shadowLight = 1.0;
-            }
-            
-            // Scuriamo il prato dove c'è l'ombra (non nero totale, lasciamo un 40% di luce ambientale)
-            float ambientShadow = mix(0.4, 1.0, shadowLight);
-            floorColor.rgb *= ambientShadow;
-            // --- FINE CALCOLO OMBRE ---
-
-            // Sfumatura Skybox
             vec3 dir = normalize(v_worldPos - u_cameraPos);
             vec4 skyColor = textureCube(u_skybox, dir);
 
             float dist = length(v_worldPos.xz - u_cameraPos.xz);
-            float fogFactor = smoothstep(20.0, 200.0, dist);
+            float fogFactor = smoothstep(50.0, 200.0, dist);
 
-            vec3 finalColor = mix(floorColor.rgb, skyColor.rgb, fogFactor);
-            gl_FragColor = vec4(finalColor, 1.0);
+            gl_FragColor = mix(floorColor, skyColor, fogFactor);
+        }
+    </script>
+
+    <script id="planar-shadow-vertex-shader" type="x-shader/x-vertex">
+        attribute vec4 a_position;
+        
+        uniform mat4 u_projection;
+        uniform mat4 u_view;
+        uniform mat4 u_world;
+        uniform vec3 u_lightDir; 
+        uniform float u_floorY;
+
+        varying vec3 v_shadowPos; 
+
+        void main() {
+            vec4 worldPos = u_world * a_position;
+            
+            float t = (worldPos.y - u_floorY) / u_lightDir.y;
+            vec3 shadowPos = worldPos.xyz - u_lightDir * t;
+            
+            shadowPos.y = u_floorY + 0.05; // Antisfarfallio
+            v_shadowPos = shadowPos;
+
+            gl_Position = u_projection * u_view * vec4(shadowPos, 1.0);
+        }
+    </script>
+
+    <script id="planar-shadow-fragment-shader" type="x-shader/x-fragment">
+        precision mediump float;
+
+        uniform vec3 u_cameraPos;
+        varying vec3 v_shadowPos;
+
+        void main() {
+            // Distanza dell'ombra dalla telecamera (solo su X e Z)
+            float dist = length(v_shadowPos.xz - u_cameraPos.xz);
+            float fogFactor = smoothstep(50.0, 200.0, dist);
+            float finalAlpha = mix(0.6, 0.0, fogFactor);
+            gl_FragColor = vec4(0.0, 0.0, 0.0, finalAlpha); 
         }
     </script>
 

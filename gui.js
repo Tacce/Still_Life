@@ -54,9 +54,9 @@ function define_gui() {
     cameraFolder.open();
 
     const lightFolder = gui.addFolder("Light");
-    lightFolder.add(lightState, "x", -20.0, 20.0, 0.1).listen();
-    lightFolder.add(lightState, "y", -20.0, 20.0, 0.1).listen();
-    lightFolder.add(lightState, "z", -20.0, 20.0, 0.1).listen();
+    lightFolder.add(lightState, "x", -20.0, 15.0, 0.1).listen();
+    lightFolder.add(lightState, "y", 0.1, 15.0, 0.1).listen();
+    lightFolder.add(lightState, "z", -20.0, 15.0, 0.1).listen();
     lightFolder.add(lightState, "ambientR", 0.0, 1.0, 0.01).listen();
     lightFolder.add(lightState, "ambientG", 0.0, 1.0, 0.01).listen();
     lightFolder.add(lightState, "ambientB", 0.0, 1.0, 0.01).listen();
@@ -67,7 +67,7 @@ function define_gui() {
 
     const specialFolder = gui.addFolder("Advanced Rendering");
     specialFolder.add(shadowState, "enabled").name("Enable shadows").listen();
-    specialFolder.add(renderStyleState, "shadingType", ["Phong", "Flat"]).name("Stile Shading").listen();
+    specialFolder.add(renderStyleState, "shadingType", ["Phong", "Flat"]).name("Shading Style").listen();
     specialFolder.open();
 
 

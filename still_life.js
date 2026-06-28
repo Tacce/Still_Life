@@ -58,7 +58,7 @@ const skyboxPresets = {
 
 const renderStyleState = {
     shadingType: 'Phong' 
-};
+}
 
 // --- FUNZIONE PONTE PER USARE GLM_UTILS ---
 async function loadMeshWithGLM(url) {
@@ -68,40 +68,66 @@ async function loadMeshWithGLM(url) {
     let mesh = new subd_mesh();
     glmReadOBJ(textData, mesh);
 
-    // Array piatti per WebGL
     let positions = [];
     let normals = [];
     let texCoords = [];
     let flatNormals = [];
+    let tangents = []; 
 
-    // glm_utils usa array con indice di partenza 1 (il primo elemento è fittizio)
     for (let i = 1; i <= mesh.nface; i++) {
         let f = mesh.face[i];
         let fNorm = mesh.facetnorms[f.normalFaceIndex];
         
-        // n_v_e indica i vertici per faccia (3 per i triangoli)
+        // Prima raccogliamo i dati del triangolo per calcolare la Tangente
+        let p = [], uv = [];
+        for (let j = 0; j < f.n_v_e; j++) {
+            let vIdx = f.vert[j];
+            let tIdx = f.textCoordsIndex[j];
+            p.push([mesh.vert[vIdx].x, mesh.vert[vIdx].y, mesh.vert[vIdx].z]);
+            if (tIdx !== undefined && !isNaN(tIdx) && mesh.textCoords && mesh.textCoords[tIdx]) {
+                uv.push([mesh.textCoords[tIdx].u, mesh.textCoords[tIdx].v]);
+            } else {
+                uv.push([0, 0]);
+            }
+        }
+
+        // Calcolo Matematico della Tangente della Faccia
+        let tx = 1, ty = 0, tz = 0;
+        if (p.length >= 3) {
+            let dx1 = p[1][0] - p[0][0], dy1 = p[1][1] - p[0][1], dz1 = p[1][2] - p[0][2];
+            let dx2 = p[2][0] - p[0][0], dy2 = p[2][1] - p[0][1], dz2 = p[2][2] - p[0][2];
+            let du1 = uv[1][0] - uv[0][0], dv1 = uv[1][1] - uv[0][1];
+            let du2 = uv[2][0] - uv[0][0], dv2 = uv[2][1] - uv[0][1];
+            let det = du1 * dv2 - du2 * dv1;
+            if (det !== 0) {
+                let r = 1.0 / det;
+                tx = (dv2 * dx1 - dv1 * dx2) * r;
+                ty = (dv2 * dy1 - dv1 * dy2) * r;
+                tz = (dv2 * dz1 - dv1 * dz2) * r;
+                let len = Math.sqrt(tx*tx + ty*ty + tz*tz);
+                if (len > 0) { tx/=len; ty/=len; tz/=len; }
+            }
+        }
+
         for (let j = 0; j < f.n_v_e; j++) {
             let vIdx = f.vert[j];
             let nIdx = f.normalVertexIndex[j];
             let tIdx = f.textCoordsIndex[j];
-            // Inserisci X, Y, Z
+            
             positions.push(mesh.vert[vIdx].x, mesh.vert[vIdx].y, mesh.vert[vIdx].z);
 
             // Inserisci i, j, k (normali)
             if (nIdx !== undefined && mesh.normal[nIdx]) {
                 normals.push(mesh.normal[nIdx].i, mesh.normal[nIdx].j, mesh.normal[nIdx].k);
-            } else {
-                normals.push(0, 0, 1); // Sicurezza se mancano le normali
-            }
+            } else { normals.push(0, 0, 1); }
 
             // Inserisci u, v (coordinate texture)
             if (tIdx !== undefined && !isNaN(tIdx) && mesh.textCoords && mesh.textCoords[tIdx]) {
                 texCoords.push(mesh.textCoords[tIdx].u, mesh.textCoords[tIdx].v);
-            } else {
-                texCoords.push(0, 0); // Sicurezza
-            }
+            } else { texCoords.push(0, 0); }
 
             flatNormals.push(fNorm.i, fNorm.j, fNorm.k);
+            tangents.push(tx, ty, tz);
         }
     }
 
@@ -109,7 +135,8 @@ async function loadMeshWithGLM(url) {
         position:   { numComponents: 3, data: new Float32Array(positions) },
         normal:     { numComponents: 3, data: new Float32Array(normals) },
         texcoord:   { numComponents: 2, data: new Float32Array(texCoords) },
-        flatNormal: { numComponents: 3, data: new Float32Array(flatNormals) }
+        flatNormal: { numComponents: 3, data: new Float32Array(flatNormals) },
+        tangent:    { numComponents: 3, data: new Float32Array(tangents) } 
     };
 }
 
@@ -138,9 +165,27 @@ function createSolidColorTexture(gl, r, g, b, a) {
     return texture;
 }
 
+function loadBumpTexture(gl, url) {
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, 1, 1, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, new Uint8Array([128]));
+    const image = new Image();
+    image.src = url;
+    image.onload = function() {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, image);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    };
+    return texture;
+}
+
 async function main() {
     const canvas = document.getElementById("canvas");
-    const gl = canvas.getContext("webgl");
+    const gl = canvas.getContext("webgl",{stencil:true});
     if (!gl) {
         alert("Il tuo browser non supporta WebGL");
         return;
@@ -154,6 +199,7 @@ async function main() {
 
     const programInfo = webglUtils.createProgramInfo(gl, ["3d-vertex-shader", "3d-fragment-shader"]);
     const depthProgramInfo = webglUtils.createProgramInfo(gl, ["depth-vertex-shader", "depth-fragment-shader"]);
+    const planarShadowProgramInfo = webglUtils.createProgramInfo(gl, ["planar-shadow-vertex-shader", "planar-shadow-fragment-shader"]);
 
     const depthTextureSize = 2048;
     const depthTexture = gl.createTexture();
@@ -225,7 +271,12 @@ async function main() {
         Ka: gl.getUniformLocation(program, "u_Ka"),
         Kd: gl.getUniformLocation(program, "u_Kd"),
         Ks: gl.getUniformLocation(program, "u_Ks"),
-        shininess: gl.getUniformLocation(program, "u_shininess")
+        shininess: gl.getUniformLocation(program, "u_shininess"),
+        tangent: gl.getAttribLocation(program, "a_tangent"),
+        bumpMap: gl.getUniformLocation(program, "u_bumpMap"),
+        useBumpMap: gl.getUniformLocation(program, "u_useBumpMap"),
+        bumpStrength: gl.getUniformLocation(program, "u_bumpStrength"),
+        bumpMapSize: gl.getUniformLocation(program, "u_bumpMapSize")
     };
 
     // USIAMO LA NUOVA FUNZIONE PONTE CON GLM_UTILS
@@ -277,6 +328,7 @@ async function main() {
     const Fly_occhioTexture = loadTexture(gl, 'resources/texture/Insect-eyes.png');
     const butterflyTexture = loadTexture(gl, 'resources/texture/Farfalla.png');
 
+    const tavoloBumpTexture = loadBumpTexture(gl, 'resources/bump_maps/wood_bump1.png');
     
 
     const aladxWorldMatrix = m4.translation(-0.013, 0.157, 0.018);
@@ -300,7 +352,7 @@ async function main() {
     const matCloth = { Ka: 1.0, Kd: 0.8, Ks: 0.05, shininess: 2.0 };
 
     // Helper per disegnare velocemente nel render loop
-function drawObject(currentProgramInfo, buffers, texture, alpha, material = defaultMaterial, worldMatrix = m4.identity(), isDoubleSided = false,) {
+function drawObject(currentProgramInfo, buffers, texture, alpha, material = defaultMaterial, worldMatrix = m4.identity(), isDoubleSided = false, bumpTexture = null) {
         webglUtils.setBuffersAndAttributes(gl, currentProgramInfo, buffers);
         gl.uniformMatrix4fv(gl.getUniformLocation(currentProgramInfo.program, "u_world"), false, worldMatrix);
 
@@ -318,6 +370,19 @@ function drawObject(currentProgramInfo, buffers, texture, alpha, material = defa
             gl.uniform1f(locations.Kd, material.Kd);
             gl.uniform1f(locations.Ks, material.Ks);
             gl.uniform1f(locations.shininess, material.shininess);
+
+            if (bumpTexture !== null) {
+                gl.uniform1i(locations.useBumpMap, 1);
+                gl.uniform1f(locations.bumpStrength, 5.0); // più alto per un effetto più evidente
+                gl.uniform2f(locations.bumpMapSize, 1024.0, 512.0); // Risoluzione di campionamento
+                
+                gl.activeTexture(gl.TEXTURE3);
+                gl.bindTexture(gl.TEXTURE_2D, bumpTexture);
+                gl.uniform1i(locations.bumpMap, 3);
+                gl.activeTexture(gl.TEXTURE0); 
+            } else {
+                gl.uniform1i(locations.useBumpMap, 0);
+            }
         }
 
         webglUtils.drawBufferInfo(gl, buffers);    
@@ -336,7 +401,7 @@ function drawObject(currentProgramInfo, buffers, texture, alpha, material = defa
         const shadowPass = options.shadowPass === true;
         const { flyWorldMatrices, butterflyWorldMatrices, cameraPosition } = sceneState;
 
-        drawObject(currentProgramInfo, tavoloBuffers, tavoloTexture, 1.0, matWood);
+        drawObject(currentProgramInfo, tavoloBuffers, tavoloTexture, 1.0, matWood, m4.identity(), false, tavoloBumpTexture);
         drawObject(currentProgramInfo, tappoBuffers, tappoTexture, 1.0, matWood);
         drawObject(currentProgramInfo, vinoBuffers, vinoTexture, 1.0, matGlass);
         if (!shadowPass) {
@@ -457,8 +522,7 @@ function drawObject(currentProgramInfo, buffers, texture, alpha, material = defa
             -frustumSize, frustumSize, 
             0.5, lightDist + sceneRadius
         );*/
-        //const lightProjectionMatrix = m4.orthographic(-10, 10, -10, 10, 0.5, 30);
-        const lightProjectionMatrix = m4.orthographic(-15, 15, -15, 15, 0.5, 40);
+        const lightProjectionMatrix = m4.orthographic(-10, 10, -10, 10, 0.5, 30);
 
         if (shadowState.enabled) {
             gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
@@ -481,7 +545,7 @@ function drawObject(currentProgramInfo, buffers, texture, alpha, material = defa
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         gl.clearColor(0.1, 0.1, 0.1, 1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
 
         // --- RENDERING DELLA SKYBOX ---
         if (appState.currentSkybox !== 'Nessuna' && activeSkyboxTexture !== null) {
@@ -540,6 +604,33 @@ function drawObject(currentProgramInfo, buffers, texture, alpha, material = defa
             gl.activeTexture(gl.TEXTURE0); // Ripristino sicurezza
         }
 
+        // --- RENDERING OMBRA PLANARE SUL PAVIMENTO ---
+        if (shadowState.enabled) {
+            gl.useProgram(planarShadowProgramInfo.program);
+            
+            // Stencil per evitare che le ombre si scuriscano sovrapponendosi
+            gl.enable(gl.STENCIL_TEST);
+            gl.stencilFunc(gl.EQUAL, 0, 0xFF);
+            gl.stencilOp(gl.KEEP, gl.KEEP, gl.INCR);
+            
+            gl.enable(gl.BLEND);
+            gl.depthMask(false);
+
+            const lightDir = m4.normalize([lightState.x, lightState.y, lightState.z]);
+            
+            gl.uniformMatrix4fv(gl.getUniformLocation(planarShadowProgramInfo.program, "u_projection"), false, projectionMatrix);
+            gl.uniformMatrix4fv(gl.getUniformLocation(planarShadowProgramInfo.program, "u_view"), false, viewMatrix);
+            gl.uniform3fv(gl.getUniformLocation(planarShadowProgramInfo.program, "u_lightDir"), lightDir);
+            gl.uniform1f(gl.getUniformLocation(planarShadowProgramInfo.program, "u_floorY"), -10.9);
+            gl.uniform3fv(gl.getUniformLocation(planarShadowProgramInfo.program, "u_cameraPos"), cameraPosition);
+
+            // Usiamo shadowPass: true per evitare calcoli inutili su texture e trasparenze
+            drawSceneObjects(planarShadowProgramInfo, { flyWorldMatrices, butterflyWorldMatrices, cameraPosition }, { includeTransparent: true, shadowPass: true });
+
+            gl.depthMask(true);
+            gl.disable(gl.STENCIL_TEST);
+        }
+
         gl.useProgram(programInfo.program);
         gl.uniformMatrix4fv(locations.projection, false, projectionMatrix);
         gl.uniformMatrix4fv(locations.view, false, viewMatrix);
@@ -555,6 +646,7 @@ function drawObject(currentProgramInfo, buffers, texture, alpha, material = defa
         gl.bindTexture(gl.TEXTURE_2D, depthTexture);
         gl.uniform1i(locations.projectedTexture, 1);
         gl.uniform1i(locations.shadowsEnabled, shadowState.enabled ? 1 : 0);
+        gl.uniform1f(gl.getUniformLocation(program, "u_bumpScale"), 3.0);
         gl.activeTexture(gl.TEXTURE0);
 
         drawSceneObjects(programInfo, { flyWorldMatrices, butterflyWorldMatrices, cameraPosition }, { includeTransparent: true });
