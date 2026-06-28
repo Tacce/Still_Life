@@ -24,6 +24,11 @@ function define_gui() {
         enabled: true
     };
 
+    const defaultBumpState = {
+        enabled: true
+    };
+
+
     function refreshControllers(folder) {
         folder.__controllers.forEach((controller) => controller.updateDisplay());
         folder.__folders && Object.values(folder.__folders).forEach((subFolder) => refreshControllers(subFolder));
@@ -34,6 +39,7 @@ function define_gui() {
         Object.assign(flyWingAnimationState, defaultFlyWingAnimationState);
         Object.assign(butterflyWingAnimationState, defaultButterflyWingAnimationState);
         Object.assign(shadowState, defaultShadowState);
+        Object.assign(bumpState, defaultBumpState);
 
         const currentPreset = skyboxPresets[appState.currentSkybox];
         if (currentPreset && currentPreset.light) {
@@ -68,6 +74,7 @@ function define_gui() {
     const specialFolder = gui.addFolder("Advanced Rendering");
     specialFolder.add(shadowState, "enabled").name("Enable shadows").listen();
     specialFolder.add(renderStyleState, "shadingType", ["Phong", "Flat"]).name("Shading Style").listen();
+    specialFolder.add(bumpState, "enabled").name("Enable bump mapping").listen();
     specialFolder.open();
 
 

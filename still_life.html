@@ -122,7 +122,8 @@
         uniform bool u_useBumpMap;
         uniform float u_bumpStrength;
         uniform vec2 u_bumpMapSize;
-        uniform float u_bumpScale;                
+        uniform float u_bumpScale;
+        uniform float u_bumpTiling;
 
         float sampleBump(sampler2D map, vec2 uv, vec2 mapSize) {
             vec2 texel = floor(uv * mapSize) + 0.5;
@@ -138,7 +139,7 @@
                 normal = normalize(v_normal);
             }
 
-            if ( !gl_FrontFacing) { //u_isDoubleSided &&
+            if (!gl_FrontFacing) { //u_isDoubleSided &&
                 normal = -normal;
             }
 

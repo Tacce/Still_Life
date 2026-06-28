@@ -33,6 +33,10 @@ const shadowState = {
     enabled: true
 };
 
+const bumpState = {
+    enabled: true
+};
+
 const appState = {
     isPaused: false,
     currentSkybox: 'Nessuna'
@@ -276,7 +280,9 @@ async function main() {
         bumpMap: gl.getUniformLocation(program, "u_bumpMap"),
         useBumpMap: gl.getUniformLocation(program, "u_useBumpMap"),
         bumpStrength: gl.getUniformLocation(program, "u_bumpStrength"),
-        bumpMapSize: gl.getUniformLocation(program, "u_bumpMapSize")
+        bumpMapSize: gl.getUniformLocation(program, "u_bumpMapSize"),
+        bumpTiling:   gl.getUniformLocation(program, "u_bumpTiling"),
+        bumpScale:    gl.getUniformLocation(program, "u_bumpScale"),
     };
 
     // USIAMO LA NUOVA FUNZIONE PONTE CON GLM_UTILS
@@ -329,6 +335,7 @@ async function main() {
     const butterflyTexture = loadTexture(gl, 'resources/texture/Farfalla.png');
 
     const tavoloBumpTexture = loadBumpTexture(gl, 'resources/bump_maps/wood_bump1.png');
+    const tovagliaBumpTexture = loadBumpTexture(gl, 'resources/bump_maps/cloth_bump2.png');
     
 
     const aladxWorldMatrix = m4.translation(-0.013, 0.157, 0.018);
@@ -352,7 +359,7 @@ async function main() {
     const matCloth = { Ka: 1.0, Kd: 0.8, Ks: 0.05, shininess: 2.0 };
 
     // Helper per disegnare velocemente nel render loop
-function drawObject(currentProgramInfo, buffers, texture, alpha, material = defaultMaterial, worldMatrix = m4.identity(), isDoubleSided = false, bumpTexture = null) {
+    function drawObject(currentProgramInfo, buffers, texture, alpha, material = defaultMaterial, worldMatrix = m4.identity(), isDoubleSided = false, bumpTexture = null, bumpOptions = {}) {
         webglUtils.setBuffersAndAttributes(gl, currentProgramInfo, buffers);
         gl.uniformMatrix4fv(gl.getUniformLocation(currentProgramInfo.program, "u_world"), false, worldMatrix);
 
@@ -371,11 +378,14 @@ function drawObject(currentProgramInfo, buffers, texture, alpha, material = defa
             gl.uniform1f(locations.Ks, material.Ks);
             gl.uniform1f(locations.shininess, material.shininess);
 
-            if (bumpTexture !== null) {
+            if (bumpTexture !== null && bumpState.enabled) {
                 gl.uniform1i(locations.useBumpMap, 1);
-                gl.uniform1f(locations.bumpStrength, 5.0); // più alto per un effetto più evidente
-                gl.uniform2f(locations.bumpMapSize, 1024.0, 512.0); // Risoluzione di campionamento
-                
+                gl.uniform1f(locations.bumpStrength, bumpOptions.strength  ?? 5.0);
+                gl.uniform1f(locations.bumpScale,    bumpOptions.scale     ?? 3.0);
+                gl.uniform2f(locations.bumpMapSize,  bumpOptions.width     ?? 1024.0, 
+                                                    bumpOptions.height    ?? 512.0);
+                gl.uniform1f(locations.bumpTiling,   bumpOptions.tiling    ?? 0.5);
+
                 gl.activeTexture(gl.TEXTURE3);
                 gl.bindTexture(gl.TEXTURE_2D, bumpTexture);
                 gl.uniform1i(locations.bumpMap, 3);
@@ -401,14 +411,26 @@ function drawObject(currentProgramInfo, buffers, texture, alpha, material = defa
         const shadowPass = options.shadowPass === true;
         const { flyWorldMatrices, butterflyWorldMatrices, cameraPosition } = sceneState;
 
-        drawObject(currentProgramInfo, tavoloBuffers, tavoloTexture, 1.0, matWood, m4.identity(), false, tavoloBumpTexture);
+        drawObject(currentProgramInfo, tavoloBuffers, tavoloTexture, 1.0, matWood, m4.identity(), false, tavoloBumpTexture, {
+            strength: 5.0,
+            scale: 3.0,
+            width: 1024.0,
+            height: 512.0,
+        });
         drawObject(currentProgramInfo, tappoBuffers, tappoTexture, 1.0, matWood);
         drawObject(currentProgramInfo, vinoBuffers, vinoTexture, 1.0, matGlass);
         if (!shadowPass) {
             drawObject(currentProgramInfo, etichettaBuffers, etichettaTexture, 1.0);
         }
-        drawObject(currentProgramInfo, tovagliaBuffers, tovagliaTexture, 1.0, matCloth);
-        
+
+        drawObject(currentProgramInfo, tovagliaBuffers, tovagliaTexture, 1.0, matCloth, m4.identity(), false, tovagliaBumpTexture, {
+            strength: 0.7,
+            scale: 10.0,
+            width: 512.0,
+            height: 512.0,
+            tiling: 0.5
+        });         
+
         drawObject(currentProgramInfo, corpoBuffers, Fly_corpoTexture, 1.0,defaultMaterial, flyWorldMatrices.corpoWorldMatrix);
         drawObject(currentProgramInfo, aladxBuffers, Fly_alaTexture, 1.0, defaultMaterial, flyWorldMatrices.aladxWorldMatrixAnimated);
         drawObject(currentProgramInfo, alasxBuffers, Fly_alaTexture, 1.0, defaultMaterial, flyWorldMatrices.alasxWorldMatrixAnimated);
@@ -646,7 +668,6 @@ function drawObject(currentProgramInfo, buffers, texture, alpha, material = defa
         gl.bindTexture(gl.TEXTURE_2D, depthTexture);
         gl.uniform1i(locations.projectedTexture, 1);
         gl.uniform1i(locations.shadowsEnabled, shadowState.enabled ? 1 : 0);
-        gl.uniform1f(gl.getUniformLocation(program, "u_bumpScale"), 3.0);
         gl.activeTexture(gl.TEXTURE0);
 
         drawSceneObjects(programInfo, { flyWorldMatrices, butterflyWorldMatrices, cameraPosition }, { includeTransparent: true });
