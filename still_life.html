@@ -6,52 +6,56 @@
     <title>Still Life</title>
     <style>
         body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #1a1a1a;
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; background-color: #1a1a1a;
         }
+
         #canvas {
-            display: block;
-            width: 100vw;
-            height: 100vh;
+            display: block; width: 100vw; height: 100vh;
         }
-        #mobile-pause-btn {
+
+        #mobile-controls {
             position: absolute;
             bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center; 
+            gap: 15px; 
+            z-index: 10;
+            pointer-events: none; 
+        }
+
+        .mobile-btn {
+            pointer-events: auto; /* Riabilita i tap sui pulsanti */
             padding: 15px 30px;
-            font-size: 18px;
-            font-family: sans-serif;
-            font-weight: bold;
+            font: bold 18px sans-serif;
             color: white;
             background-color: rgba(40, 40, 40, 0.8);
             border: 2px solid #ffffff;
             border-radius: 25px;
             cursor: pointer;
-            z-index: 10; /* Lo tiene sopra il canvas */
-            user-select: none; /* Evita selezioni accidentali del testo */
+            user-select: none;
         }
-        
-        #mobile-pause-btn:active {
+
+        .mobile-btn:active {
             background-color: rgba(100, 100, 100, 0.9);
         }
 
         @media (hover: hover) and (pointer: fine) {
-            #mobile-pause-btn {
+            #mobile-controls {
                 display: none;
             }
         }
-
     </style>
 </head>
 <body>
     <canvas id="canvas"></canvas>
+    <div id="mobile-controls">
+        <button id="mobile-pause-btn" class="mobile-btn">Pause</button>
+        <button id="mobile-skybox-btn" class="mobile-btn">Change Skybox</button>
+    </div>
 
-    <button id="mobile-pause-btn">Pause</button>
 
     <!-- VERTEX SHADER -->
     <script id="3d-vertex-shader" type="x-shader/x-vertex">
@@ -59,7 +63,6 @@
         attribute vec3 a_normal;
         attribute vec3 a_flatNormal;
         attribute vec2 a_texcoord;
-        attribute vec3 a_tangent; 
 
         uniform mat4 u_projection;
         uniform mat4 u_view;
@@ -72,7 +75,6 @@
         varying vec2 v_texcoord;
         varying vec3 v_surfaceWorldPosition;
         varying vec4 v_projectedTexcoord;
-        varying vec3 v_tangent; 
 
         void main() {
             vec4 worldPosition = u_world * a_position;
@@ -82,7 +84,6 @@
             mat3 normalMatrix = mat3(u_worldInverseTranspose);
             v_normal = normalMatrix * a_normal;
             v_flatNormal = normalMatrix * a_flatNormal;
-            v_tangent = normalMatrix * a_tangent;
 
             v_texcoord = a_texcoord;
             v_projectedTexcoord = u_textureMatrix * worldPosition;
@@ -98,7 +99,6 @@
         varying vec2 v_texcoord;
         varying vec3 v_surfaceWorldPosition;
         varying vec4 v_projectedTexcoord;
-        varying vec3 v_tangent; 
 
         uniform vec3 u_lightWorldPosition;
         uniform vec3 u_viewWorldPosition;
@@ -123,7 +123,6 @@
         uniform float u_bumpStrength;
         uniform vec2 u_bumpMapSize;
         uniform float u_bumpScale;
-        uniform float u_bumpTiling;
 
         float sampleBump(sampler2D map, vec2 uv, vec2 mapSize) {
             vec2 texel = floor(uv * mapSize) + 0.5;
@@ -146,7 +145,6 @@
             //BUMP MAPPING
             if (u_useBumpMap) {
                 // Ricostruisci tangent/binormal dalla normale in world space
-                // invece di usare v_tangent che varia tra le facce
                 vec3 n = normal;
                 
                 // Scegliamo un vettore "up" che non sia parallelo alla normale

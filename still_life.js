@@ -76,13 +76,11 @@ async function loadMeshWithGLM(url) {
     let normals = [];
     let texCoords = [];
     let flatNormals = [];
-    let tangents = []; 
 
     for (let i = 1; i <= mesh.nface; i++) {
         let f = mesh.face[i];
         let fNorm = mesh.facetnorms[f.normalFaceIndex];
         
-        // Prima raccogliamo i dati del triangolo per calcolare la Tangente
         let p = [], uv = [];
         for (let j = 0; j < f.n_v_e; j++) {
             let vIdx = f.vert[j];
@@ -92,24 +90,6 @@ async function loadMeshWithGLM(url) {
                 uv.push([mesh.textCoords[tIdx].u, mesh.textCoords[tIdx].v]);
             } else {
                 uv.push([0, 0]);
-            }
-        }
-
-        // Calcolo Matematico della Tangente della Faccia
-        let tx = 1, ty = 0, tz = 0;
-        if (p.length >= 3) {
-            let dx1 = p[1][0] - p[0][0], dy1 = p[1][1] - p[0][1], dz1 = p[1][2] - p[0][2];
-            let dx2 = p[2][0] - p[0][0], dy2 = p[2][1] - p[0][1], dz2 = p[2][2] - p[0][2];
-            let du1 = uv[1][0] - uv[0][0], dv1 = uv[1][1] - uv[0][1];
-            let du2 = uv[2][0] - uv[0][0], dv2 = uv[2][1] - uv[0][1];
-            let det = du1 * dv2 - du2 * dv1;
-            if (det !== 0) {
-                let r = 1.0 / det;
-                tx = (dv2 * dx1 - dv1 * dx2) * r;
-                ty = (dv2 * dy1 - dv1 * dy2) * r;
-                tz = (dv2 * dz1 - dv1 * dz2) * r;
-                let len = Math.sqrt(tx*tx + ty*ty + tz*tz);
-                if (len > 0) { tx/=len; ty/=len; tz/=len; }
             }
         }
 
@@ -131,7 +111,6 @@ async function loadMeshWithGLM(url) {
             } else { texCoords.push(0, 0); }
 
             flatNormals.push(fNorm.i, fNorm.j, fNorm.k);
-            tangents.push(tx, ty, tz);
         }
     }
 
@@ -140,7 +119,6 @@ async function loadMeshWithGLM(url) {
         normal:     { numComponents: 3, data: new Float32Array(normals) },
         texcoord:   { numComponents: 2, data: new Float32Array(texCoords) },
         flatNormal: { numComponents: 3, data: new Float32Array(flatNormals) },
-        tangent:    { numComponents: 3, data: new Float32Array(tangents) } 
     };
 }
 
@@ -276,12 +254,10 @@ async function main() {
         Kd: gl.getUniformLocation(program, "u_Kd"),
         Ks: gl.getUniformLocation(program, "u_Ks"),
         shininess: gl.getUniformLocation(program, "u_shininess"),
-        tangent: gl.getAttribLocation(program, "a_tangent"),
         bumpMap: gl.getUniformLocation(program, "u_bumpMap"),
         useBumpMap: gl.getUniformLocation(program, "u_useBumpMap"),
         bumpStrength: gl.getUniformLocation(program, "u_bumpStrength"),
         bumpMapSize: gl.getUniformLocation(program, "u_bumpMapSize"),
-        bumpTiling:   gl.getUniformLocation(program, "u_bumpTiling"),
         bumpScale:    gl.getUniformLocation(program, "u_bumpScale"),
     };
 
@@ -384,8 +360,6 @@ async function main() {
                 gl.uniform1f(locations.bumpScale,    bumpOptions.scale     ?? 3.0);
                 gl.uniform2f(locations.bumpMapSize,  bumpOptions.width     ?? 1024.0, 
                                                     bumpOptions.height    ?? 512.0);
-                gl.uniform1f(locations.bumpTiling,   bumpOptions.tiling    ?? 0.5);
-
                 gl.activeTexture(gl.TEXTURE3);
                 gl.bindTexture(gl.TEXTURE_2D, bumpTexture);
                 gl.uniform1i(locations.bumpMap, 3);
@@ -428,7 +402,6 @@ async function main() {
             scale: 10.0,
             width: 512.0,
             height: 512.0,
-            tiling: 0.5
         });         
 
         drawObject(currentProgramInfo, corpoBuffers, Fly_corpoTexture, 1.0,defaultMaterial, flyWorldMatrices.corpoWorldMatrix);

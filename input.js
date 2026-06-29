@@ -52,6 +52,7 @@ function initInputHandlers(canvas) {
 
     // --- CONTROLLI PAUSA (Tastiera e Mobile) ---
     const pauseBtn = document.getElementById('mobile-pause-btn');
+    const skyboxBtn = document.getElementById('mobile-skybox-btn');
 
     function togglePause() {
         appState.isPaused = !appState.isPaused;
@@ -60,9 +61,29 @@ function initInputHandlers(canvas) {
         }
     }
 
+    function cycleSkybox() {
+        const presetNames = Object.keys(skyboxPresets);
+        const currentIndex = presetNames.indexOf(appState.currentSkybox);
+        const nextIndex = (currentIndex + 1) % presetNames.length;
+        
+        appState.currentSkybox = presetNames[nextIndex];
+        
+        if (window.changeEnvironment) {
+            window.changeEnvironment(appState.currentSkybox);
+            
+            // Aggiorna la GUI se aperta
+            if (window.updateGuiDisplay) {
+                window.updateGuiDisplay();
+            }
+        }
+    }
+
     window.addEventListener('keydown', (e) => {
         if (e.key === 'p' || e.key === 'P') {
             togglePause();
+        }
+        if (e.key === 's' || e.key === 'S') {
+            cycleSkybox();
         }
     });
 
@@ -73,6 +94,15 @@ function initInputHandlers(canvas) {
 
         pauseBtn.addEventListener('mousedown', (e) => e.stopPropagation());
         pauseBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+    }
+
+    if (skyboxBtn) {
+        skyboxBtn.addEventListener('click', (e) => {
+            cycleSkybox();
+        });
+
+        skyboxBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+        skyboxBtn.addEventListener('touchstart', (e) => e.stopPropagation());
     }
 
     // --- CONTROLLI TOUCH (Mobile) ---
