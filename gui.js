@@ -1,6 +1,11 @@
+window.guiInstance = null;
+
 function define_gui() {
-    const gui = new dat.GUI();
+    
+    window.guiInstance = new dat.GUI();
+    const gui = window.guiInstance;
     gui.width = 320;
+    gui.close();
 
     let shadingToggleController = null;
 
@@ -60,9 +65,9 @@ function define_gui() {
     cameraFolder.open();
 
     const lightFolder = gui.addFolder("Light");
-    lightFolder.add(lightState, "x", -20.0, 15.0, 0.1).listen();
-    lightFolder.add(lightState, "y", 0.1, 15.0, 0.1).listen();
-    lightFolder.add(lightState, "z", -20.0, 15.0, 0.1).listen();
+    lightFolder.add(lightState, "x", -10.0, 10.0, 0.1).listen();
+    lightFolder.add(lightState, "y", 5.0, 15.0, 0.1).listen();
+    lightFolder.add(lightState, "z", -15.0, 15.0, 0.1).listen();
     lightFolder.add(lightState, "ambientR", 0.0, 1.0, 0.01).listen();
     lightFolder.add(lightState, "ambientG", 0.0, 1.0, 0.01).listen();
     lightFolder.add(lightState, "ambientB", 0.0, 1.0, 0.01).listen();
@@ -76,8 +81,6 @@ function define_gui() {
     specialFolder.add(renderStyleState, "shadingType", ["Phong", "Flat"]).name("Shading Style").listen();
     specialFolder.add(bumpState, "enabled").name("Enable bump mapping").listen();
     specialFolder.open();
-
-
 
     const animationFolder = gui.addFolder("Animation");
     animationFolder.add(flyWingAnimationState, "speed", 0.0, 0.02, 0.0005).name("Fly wing speed").listen();
@@ -98,3 +101,19 @@ function define_gui() {
         
     envFolder.open();
 }
+
+// Aggiungi questa funzione in gui.js
+window.updateGuiDisplay = function() {
+    function refreshRecursive(folder) {
+        // Aggiorna i controller del folder attuale
+        folder.__controllers.forEach(c => c.updateDisplay());
+        // Aggiorna ricorsivamente i sub-folders
+        for (let name in folder.__folders) {
+            refreshRecursive(folder.__folders[name]);
+        }
+    }
+    
+    if (window.guiInstance) {
+        refreshRecursive(window.guiInstance);
+    }
+};

@@ -18,7 +18,8 @@ const lightState = {
     ambientB: 0.25,
     lightR: 1.0,
     lightG: 0.9,
-    lightB: 0.8
+    lightB: 0.8,
+    isDirectional: false
 };
 
 const flyWingAnimationState = {
@@ -46,17 +47,17 @@ const skyboxPresets = {
     'Nessuna': {
         url: null,
         floor_url: null,
-        light: { x: -1.0, y: 10.0, z: 5.0, ambientR: 0.2, ambientG: 0.2, ambientB: 0.25, lightR: 1.0, lightG: 0.9, lightB: 0.8 }
+        light: { x: -1.0, y: 10.0, z: 5.0, ambientR: 0.2, ambientG: 0.2, ambientB: 0.25, lightR: 1.0, lightG: 0.9, lightB: 0.8, isDirectional: false }
     },
     'Giorno': {
         url: 'resources/skybox/giorno.png',
         floor_url: 'resources/texture/floor_giorno.png',
-        light: { x: 9, y: 8.0, z: 15.3, ambientR: 0.42, ambientG: 0.38, ambientB: 0.35, lightR: 1.0, lightG: 0.95, lightB: 0.9 }
+        light: { x: 9, y: 8.0, z: 15, ambientR: 0.42, ambientG: 0.38, ambientB: 0.35, lightR: 1.0, lightG: 0.95, lightB: 0.9, isDirectional: true }
     },
     'Notte': {
         url: 'resources/skybox/notte.png',
         floor_url: 'resources/texture/floor_notte.png',
-        light: { x: -1.0, y: 9.0, z: -12.0, ambientR: 0., ambientG: 0., ambientB: 0.0, lightR: 0.15, lightG: 0.2, lightB: 0.35 } 
+        light: { x: -1.0, y: 9.0, z: -12.0, ambientR: 0., ambientG: 0., ambientB: 0.0, lightR: 0.15, lightG: 0.2, lightB: 0.35, isDirectional: true } 
     }
 };
 
@@ -147,6 +148,18 @@ function createSolidColorTexture(gl, r, g, b, a) {
     return texture;
 }
 
+function createWireBufferInfo(gl) {
+    return webglUtils.createBufferInfoFromArrays(gl, {
+        position: {
+            numComponents: 3,
+            data: new Float32Array([
+                0.0, 0.0, 0.0,
+                0.0, 1.0, 0.0,
+            ]),
+        },
+    });
+}
+
 function loadBumpTexture(gl, url) {
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -180,10 +193,11 @@ async function main() {
     }
 
     const programInfo = webglUtils.createProgramInfo(gl, ["3d-vertex-shader", "3d-fragment-shader"]);
+    const wireProgramInfo = webglUtils.createProgramInfo(gl, ["wire-vertex-shader", "wire-fragment-shader"]);
     const depthProgramInfo = webglUtils.createProgramInfo(gl, ["depth-vertex-shader", "depth-fragment-shader"]);
     const planarShadowProgramInfo = webglUtils.createProgramInfo(gl, ["planar-shadow-vertex-shader", "planar-shadow-fragment-shader"]);
 
-    const depthTextureSize = 2048;
+    const depthTextureSize = 4096;
     const depthTexture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, depthTexture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT, depthTextureSize, depthTextureSize, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);
@@ -201,6 +215,7 @@ async function main() {
     const skyboxProgramInfo = webglUtils.createProgramInfo(gl, ["skybox-vertex-shader", "skybox-fragment-shader"]);
     const quadVertices = createXYQuadVertices(); 
     const quadBufferInfo = webglUtils.createBufferInfoFromArrays(gl, quadVertices);
+    const wireBufferInfo = createWireBufferInfo(gl);
     
     let activeSkyboxTexture = null;
 
@@ -248,6 +263,7 @@ async function main() {
         bias: gl.getUniformLocation(program, "u_bias"),
         shadowsEnabled: gl.getUniformLocation(program, "u_shadowsEnabled"),
         alpha: gl.getUniformLocation(program, "u_alpha"),
+        isEmissive: gl.getUniformLocation(program, "u_isEmissive"),
         isDoubleSided: gl.getUniformLocation(program, "u_isDoubleSided"),
         useFlatShading: gl.getUniformLocation(program, "u_useFlatShading"),
         Ka: gl.getUniformLocation(program, "u_Ka"),
@@ -269,6 +285,7 @@ async function main() {
     const tappoMesh = await loadMeshWithGLM('resources/obj/Tappo.obj');
     const etichettaMesh = await loadMeshWithGLM('resources/obj/Etichetta.obj');
     const tovagliaMesh = await loadMeshWithGLM('resources/obj/Tovaglia.obj');
+    const lightBulbMesh = await loadMeshWithGLM('resources/obj/light_bulb.obj');
 
     // Mosca
     const Fly_corpoMesh = await loadMeshWithGLM('resources/obj/Fly_body.obj');
@@ -288,6 +305,7 @@ async function main() {
     const tappoBuffers = webglUtils.createBufferInfoFromArrays(gl, tappoMesh);
     const etichettaBuffers = webglUtils.createBufferInfoFromArrays(gl, etichettaMesh);
     const tovagliaBuffers = webglUtils.createBufferInfoFromArrays(gl, tovagliaMesh);
+    const lightBulbBuffers = webglUtils.createBufferInfoFromArrays(gl, lightBulbMesh);
     const corpoBuffers = webglUtils.createBufferInfoFromArrays(gl, Fly_corpoMesh);
     const aladxBuffers = webglUtils.createBufferInfoFromArrays(gl, Fly_aladxMesh);
     const alasxBuffers = webglUtils.createBufferInfoFromArrays(gl, Fly_alasxMesh);
@@ -304,7 +322,8 @@ async function main() {
     const tappoTexture = loadTexture(gl, 'resources/texture/sughero.jpg');
     const etichettaTexture = loadTexture(gl, 'resources/texture/Etichetta.png');
     const tovagliaTexture = loadTexture(gl, 'resources/texture/tovaglia.jpg');
-   
+    const lightBulbTexture = loadTexture(gl, 'resources/texture/light_bulb.png');
+
     const Fly_corpoTexture = createSolidColorTexture(gl, 50, 50, 50, 255);
     const Fly_alaTexture = loadTexture(gl, 'resources/texture/wings.png');
     const Fly_occhioTexture = loadTexture(gl, 'resources/texture/Insect-eyes.png');
@@ -335,7 +354,7 @@ async function main() {
     const matCloth = { Ka: 1.0, Kd: 0.8, Ks: 0.05, shininess: 2.0 };
 
     // Helper per disegnare velocemente nel render loop
-    function drawObject(currentProgramInfo, buffers, texture, alpha, material = defaultMaterial, worldMatrix = m4.identity(), isDoubleSided = false, bumpTexture = null, bumpOptions = {}) {
+    function drawObject(currentProgramInfo, buffers, texture, alpha, material = defaultMaterial, worldMatrix = m4.identity(), isDoubleSided = false, bumpTexture = null, bumpOptions = {}, isEmissive = false) {
         webglUtils.setBuffersAndAttributes(gl, currentProgramInfo, buffers);
         gl.uniformMatrix4fv(gl.getUniformLocation(currentProgramInfo.program, "u_world"), false, worldMatrix);
 
@@ -347,6 +366,7 @@ async function main() {
         if (currentProgramInfo === programInfo) {
             gl.bindTexture(gl.TEXTURE_2D, texture);
             gl.uniform1f(locations.alpha, alpha);
+            gl.uniform1i(locations.isEmissive, isEmissive ? 1 : 0);
             gl.uniform1i(locations.isDoubleSided, isDoubleSided ? 1 : 0);
             gl.uniform1i(locations.useFlatShading, renderStyleState.shadingType === 'Flat' ? 1 : 0);
             gl.uniform1f(locations.Ka, material.Ka);
@@ -506,18 +526,29 @@ async function main() {
         const cameraMatrix = m4.lookAt(cameraPosition, target, up);
         const viewMatrix = m4.inverse(cameraMatrix);
 
-        const lightWorldMatrix = m4.lookAt([lightState.x, lightState.y, lightState.z], [0, 0, 0], [0, 1, 0]);
-        // Calcola automaticamente la frustum minima che copre la scena
-        /*const sceneRadius = 10; // raggio approssimativo della scena
-        const lightDist = Math.sqrt(lightState.x**2 + lightState.y**2 + lightState.z**2);
-        const frustumSize = sceneRadius * (lightDist / lightState.y); // scala con l'angolo
+        // Determiniamo dove deve guardare la finta telecamera delle ombre
+        let lightTarget;
+        
+        if (lightState.isDirectional) {
+            // Il Sole: guarda verso il centro della scena per creare ombre lunghe e angolate
+            lightTarget = [0, 0, 0]; 
+        } else {
+            // La Lampada: guarda dritta verso il basso per coprire tutto il tavolo sotto di sé
+            lightTarget = [lightState.x, 0.0, lightState.z - 0.001];
+        }
 
-        const lightProjectionMatrix = m4.orthographic(
-            -frustumSize, frustumSize, 
-            -frustumSize, frustumSize, 
-            0.5, lightDist + sceneRadius
-        );*/
-        const lightProjectionMatrix = m4.orthographic(-10, 10, -10, 10, 0.5, 30);
+        const lightWorldMatrix = m4.lookAt([lightState.x, lightState.y, lightState.z], lightTarget, [0, 1, 0]);
+
+        let lightProjectionMatrix;
+        if (lightState.isDirectional) {
+            const frustumSize = 20;
+            const frustumDepth = 40;
+            lightProjectionMatrix = m4.orthographic(-frustumSize, frustumSize, -frustumSize, frustumSize, 0.5, frustumDepth);
+        } else {
+            let windowSize = 195 - (5.0*lightState.y); // La lampada è più vicina, quindi usiamo un frustum più piccolo
+            lightProjectionMatrix = m4.perspective(windowSize * Math.PI / 180, 1.0, 0.5, 30.0);
+        }
+
 
         if (shadowState.enabled) {
             gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
@@ -528,7 +559,12 @@ async function main() {
             gl.uniformMatrix4fv(gl.getUniformLocation(depthProgramInfo.program, "u_view"), false, m4.inverse(lightWorldMatrix));
             gl.uniformMatrix4fv(gl.getUniformLocation(depthProgramInfo.program, "u_world"), false, m4.identity());
             gl.disable(gl.BLEND);
+
+            gl.enable(gl.POLYGON_OFFSET_FILL);
+            gl.polygonOffset(2.0, 4.0);
+
             drawSceneObjects(depthProgramInfo, { flyWorldMatrices, butterflyWorldMatrices, cameraPosition }, { includeTransparent: true, shadowPass: true });
+            gl.disable(gl.POLYGON_OFFSET_FILL);
         }
 
         let textureMatrix = m4.identity();
@@ -611,11 +647,13 @@ async function main() {
             gl.enable(gl.BLEND);
             gl.depthMask(false);
 
-            const lightDir = m4.normalize([lightState.x, lightState.y, lightState.z]);
+            //const lightDir = m4.normalize([lightState.x, lightState.y, lightState.z]);
             
             gl.uniformMatrix4fv(gl.getUniformLocation(planarShadowProgramInfo.program, "u_projection"), false, projectionMatrix);
             gl.uniformMatrix4fv(gl.getUniformLocation(planarShadowProgramInfo.program, "u_view"), false, viewMatrix);
-            gl.uniform3fv(gl.getUniformLocation(planarShadowProgramInfo.program, "u_lightDir"), lightDir);
+            //gl.uniform3fv(gl.getUniformLocation(planarShadowProgramInfo.program, "u_lightDir"), lightDir);
+            gl.uniform3fv(gl.getUniformLocation(planarShadowProgramInfo.program, "u_lightPos"), [lightState.x, lightState.y, lightState.z]);
+            gl.uniform1i(gl.getUniformLocation(planarShadowProgramInfo.program, "u_isDirectional"), lightState.isDirectional ? 1 : 0);
             gl.uniform1f(gl.getUniformLocation(planarShadowProgramInfo.program, "u_floorY"), -10.9);
             gl.uniform3fv(gl.getUniformLocation(planarShadowProgramInfo.program, "u_cameraPos"), cameraPosition);
 
@@ -644,6 +682,21 @@ async function main() {
         gl.activeTexture(gl.TEXTURE0);
 
         drawSceneObjects(programInfo, { flyWorldMatrices, butterflyWorldMatrices, cameraPosition }, { includeTransparent: true });
+
+        if(appState.currentSkybox == 'Nessuna' ) {
+        const lightBulbWorldMatrix = m4.translation(lightState.x, lightState.y - 0.117, lightState.z);
+        drawObject(programInfo, lightBulbBuffers, lightBulbTexture, 1.0, defaultMaterial, lightBulbWorldMatrix, false, null, {}, true);
+
+        const wireMatrix = m4.translation(lightState.x, lightState.y, lightState.z);
+        const scaledWireMatrix = m4.scale(wireMatrix, 0.03, 50.0, 0.03);
+        gl.useProgram(wireProgramInfo.program);
+        webglUtils.setBuffersAndAttributes(gl, wireProgramInfo, wireBufferInfo);
+        gl.uniformMatrix4fv(gl.getUniformLocation(wireProgramInfo.program, "u_projection"), false, projectionMatrix);
+        gl.uniformMatrix4fv(gl.getUniformLocation(wireProgramInfo.program, "u_view"), false, viewMatrix);
+        gl.uniformMatrix4fv(gl.getUniformLocation(wireProgramInfo.program, "u_world"), false, scaledWireMatrix);
+        gl.lineWidth(2.0);
+        webglUtils.drawBufferInfo(gl, wireBufferInfo, gl.LINES);
+        }
 
         requestAnimationFrame(render);
     }

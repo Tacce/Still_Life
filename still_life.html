@@ -16,24 +16,72 @@
 
         #mobile-controls {
             position: absolute;
-            bottom: 30px;
-            left: 0;
-            width: 100%;
+            left: 18px;
+            bottom: 18px;
+            width: auto;
             display: flex;
-            justify-content: center; 
-            gap: 15px; 
+            justify-content: flex-end;
+            align-items: flex-end;
+            gap: 12px;
             z-index: 10;
             pointer-events: none; 
         }
 
+        .mobile-panel {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            pointer-events: none;
+            width: auto;
+        }
+
+        .mobile-panel.hidden {
+            display: none;
+        }
+
+        #mobile-light-controls {
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        .mobile-keypad {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(56px, 1fr));
+            grid-template-areas:
+                "q w e"
+                "a s d";
+            gap: 8px;
+            width: min(198px, 66vw);
+            pointer-events: none;
+        }
+
+        .mobile-keypad .mobile-btn {
+            width: 100%;
+            min-width: 0;
+            padding: 10px 0;
+            text-align: center;
+            touch-action: none;
+            font-size: 14px;
+            border-width: 1px;
+            border-radius: 16px;
+        }
+
+        .mobile-keypad [data-light-key="w"] { grid-area: w; }
+        .mobile-keypad [data-light-key="a"] { grid-area: a; }
+        .mobile-keypad [data-light-key="s"] { grid-area: s; }
+        .mobile-keypad [data-light-key="d"] { grid-area: d; }
+        .mobile-keypad [data-light-key="q"] { grid-area: q; }
+        .mobile-keypad [data-light-key="e"] { grid-area: e; }
+
         .mobile-btn {
             pointer-events: auto; /* Riabilita i tap sui pulsanti */
-            padding: 15px 30px;
-            font: bold 18px sans-serif;
+            padding: 11px 16px;
+            font: bold 14px sans-serif;
             color: white;
             background-color: rgba(40, 40, 40, 0.8);
-            border: 2px solid #ffffff;
-            border-radius: 25px;
+            border: 1px solid #ffffff;
+            border-radius: 18px;
             cursor: pointer;
             user-select: none;
         }
@@ -52,8 +100,25 @@
 <body>
     <canvas id="canvas"></canvas>
     <div id="mobile-controls">
-        <button id="mobile-pause-btn" class="mobile-btn">Pause</button>
-        <button id="mobile-skybox-btn" class="mobile-btn">Change Skybox</button>
+        <div id="mobile-main-controls" class="mobile-panel">
+            <button id="mobile-pause-btn" class="mobile-btn">Pause</button>
+            <button id="mobile-skybox-btn" class="mobile-btn">Change Skybox</button>
+            <button id="mobile-light-btn" class="mobile-btn">Move Light</button>
+        </div>
+        <div id="mobile-light-controls" class="mobile-panel hidden">
+            <div class="mobile-keypad">
+                <span></span>
+                <button class="mobile-btn" data-light-key="w">W</button>
+                <span></span>
+                <button class="mobile-btn" data-light-key="a">A</button>
+                <button class="mobile-btn" data-light-key="s">S</button>
+                <button class="mobile-btn" data-light-key="d">D</button>
+                <button class="mobile-btn" data-light-key="q">Q</button>
+                <button class="mobile-btn" data-light-key="e">E</button>
+                <span></span>
+            </div>
+            <button id="mobile-light-back-btn" class="mobile-btn">Back</button>
+        </div>
     </div>
 
 
@@ -110,6 +175,7 @@
         uniform float u_Kd;
         uniform float u_Ks;
         uniform float u_shininess;
+        uniform bool u_isEmissive;
         
         uniform bool u_isDoubleSided;
         uniform sampler2D u_diffuseMap;
@@ -167,38 +233,51 @@
             
             vec3 projectedTexcoord = v_projectedTexcoord.xyz / v_projectedTexcoord.w;
             float cosTheta = clamp(dot(normal, surfaceToLightDirection), 0.0, 1.0);
-            float bias = mix(0.004, 0.005, cosTheta);
+            //float bias = mix(0.004, 0.005, cosTheta);
+            //float bias = max(0.01 * (1.0 - cosTheta), 0.005);
+            float bias = 0.0001;
             float currentDepth = projectedTexcoord.z - bias;
 
             bool inRange =
                 projectedTexcoord.x >= 0.0 && projectedTexcoord.x <= 1.0 &&
-                projectedTexcoord.y >= 0.0 && projectedTexcoord.y <= 1.0;
+                projectedTexcoord.y >= 0.0 && projectedTexcoord.y <= 1.0 && v_projectedTexcoord.w > 0.0;
 
-            /*float shadowLight = 1.0;
+            float shadowLight = 1.0;
             if (u_shadowsEnabled) {
                 float projectedDepth = texture2D(u_projectedTexture, projectedTexcoord.xy).r;
                 shadowLight = (inRange && projectedDepth <= currentDepth) ? 0.0 : 1.0;
-            }*/
+            }
 
             // Soft shadows con PCF
-            float shadowLight = 0.0;
+            /*float shadowLight = 0.0;
             if (u_shadowsEnabled) {
                 float texelSize = 1.0 / 2048.0;
                 for (int x = -1; x <= 1; x++) {
                     for (int y = -1; y <= 1; y++) {
                         vec2 offset = vec2(float(x), float(y)) * texelSize;
                         float projectedDepth = texture2D(u_projectedTexture, projectedTexcoord.xy + offset).r;
-                        shadowLight += (inRange && projectedDepth <= currentDepth) ? 0.0 : 1.0;
+                        if (inRange) {
+                            // Se siamo dentro la mappa, controlliamo normalmente se c'è un ostacolo
+                            shadowLight += (projectedDepth <= currentDepth) ? 0.0 : 1.0;
+                        } else {
+                            // Se siamo fuori dalla mappa, controlliamo l'altezza del pixel nel mondo.
+                            shadowLight += (v_surfaceWorldPosition.y < -0.01) ? 0.0 : 1.0;
+                        }
                     }
                 }
                 shadowLight /= 9.0;
             } else {
                 shadowLight = 1.0;
-            }
+            }*/
 
             // --- PHONG ---
 
             vec4 texColor = texture2D(u_diffuseMap, v_texcoord);
+
+            if (u_isEmissive) {
+                gl_FragColor = vec4(texColor.rgb * u_lightColor * 1.5, texColor.a * u_alpha);
+                return;
+            }
 
             // Componente Diffusa (Legge di Lambert)
             float lambertian = max(dot(normal, surfaceToLightDirection), 0.0);
@@ -224,6 +303,25 @@
     </script>
 
     <!-- SHADERS per Shadow Mapping -->
+    <script id="wire-vertex-shader" type="x-shader/x-vertex">
+        attribute vec4 a_position;
+
+        uniform mat4 u_projection;
+        uniform mat4 u_view;
+        uniform mat4 u_world;
+
+        void main() {
+            gl_Position = u_projection * u_view * u_world * a_position;
+        }
+    </script>
+
+    <script id="wire-fragment-shader" type="x-shader/x-fragment">
+        precision mediump float;
+
+        void main() {
+            gl_FragColor = vec4(0.1, 0, 0, 1.0);
+        }
+    </script>
     <script id="depth-vertex-shader" type="x-shader/x-vertex">
         attribute vec4 a_position;
         uniform mat4 u_projection;
@@ -315,29 +413,46 @@
         }
     </script>
 
-    <script id="planar-shadow-vertex-shader" type="x-shader/x-vertex">
-        attribute vec4 a_position;
-        
-        uniform mat4 u_projection;
-        uniform mat4 u_view;
-        uniform mat4 u_world;
-        uniform vec3 u_lightDir; 
-        uniform float u_floorY;
+<script id="planar-shadow-vertex-shader" type="x-shader/x-vertex">
+    attribute vec4 a_position;
+    
+    uniform mat4 u_projection;
+    uniform mat4 u_view;
+    uniform mat4 u_world;
+    uniform vec3 u_lightPos;
+    uniform float u_floorY;
+    uniform bool u_isDirectional;
 
-        varying vec3 v_shadowPos; 
+    varying vec3 v_shadowPos; 
 
-        void main() {
-            vec4 worldPos = u_world * a_position;
-            
-            float t = (worldPos.y - u_floorY) / u_lightDir.y;
-            vec3 shadowPos = worldPos.xyz - u_lightDir * t;
-            
-            shadowPos.y = u_floorY + 0.05; // Antisfarfallio
-            v_shadowPos = shadowPos;
+    void main() {
+        vec4 worldPos = u_world * a_position;
 
-            gl_Position = u_projection * u_view * vec4(shadowPos, 1.0);
+        vec3 dir;
+        vec3 startPos;
+
+        if (u_isDirectional) {
+            dir = -normalize(u_lightPos);
+            startPos = worldPos.xyz;
+        } else {
+            dir = worldPos.xyz - u_lightPos;
+            startPos = u_lightPos;
+
+            if (dir.y >= -0.001) {
+                gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+                return;
+            }
         }
-    </script>
+
+        float t = (u_floorY - startPos.y) / dir.y;
+        vec3 shadowPos = startPos + dir * t;
+
+        shadowPos.y = u_floorY + 0.05; // Antisfarfallio
+        v_shadowPos = shadowPos;
+
+        gl_Position = u_projection * u_view * vec4(shadowPos, 1.0);
+    }
+</script>
 
     <script id="planar-shadow-fragment-shader" type="x-shader/x-fragment">
         precision mediump float;

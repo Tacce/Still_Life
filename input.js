@@ -5,6 +5,55 @@ function initInputHandlers(canvas) {
     let lastMouseX = 0;
     let lastMouseY = 0;
 
+    const pressedKeys = new Set();
+    let lastLightMoveTime = performance.now();
+
+    function moveLight(deltaSeconds) {
+        const speed = 10.0;
+        const step = speed * deltaSeconds;
+
+        if (pressedKeys.has('w')) lightState.x += step;
+        if (pressedKeys.has('s')) lightState.x -= step;
+        if (pressedKeys.has('a')) lightState.z -= step;
+        if (pressedKeys.has('d')) lightState.z += step;
+        if (pressedKeys.has('q')) lightState.y += step;
+        if (pressedKeys.has('e')) lightState.y -= step;
+
+        lightState.x = Math.max(-10.0, Math.min(10.0, lightState.x));
+        lightState.y = Math.max(5.0, Math.min(15.0, lightState.y));
+        lightState.z = Math.max(-15.0, Math.min(15.0, lightState.z));
+    }
+
+    function isLightMovementKey(key) {
+        return key === 'w' || key === 'a' || key === 's' || key === 'd' || key === 'q' || key === 'e';
+    }
+
+    function pressLightKey(key) {
+        pressedKeys.add(key);
+        if (pressedKeys.size === 1) {
+            lastLightMoveTime = performance.now();
+        }
+    }
+
+    function releaseLightKey(key) {
+        pressedKeys.delete(key);
+    }
+
+    function clearLightKeys() {
+        pressedKeys.clear();
+    }
+
+    function updateLightMovement(now) {
+        const delta = (now - lastLightMoveTime) / 1000.0;
+        lastLightMoveTime = now;
+
+        if (pressedKeys.size > 0) {
+            moveLight(delta);
+        }
+
+        requestAnimationFrame(updateLightMovement);
+    }
+
     let isPinching = false;
     let lastPinchDistance = 0;
 
@@ -51,8 +100,60 @@ function initInputHandlers(canvas) {
     }, {passive: false});
 
     // --- CONTROLLI PAUSA (Tastiera e Mobile) ---
+    const mainControls = document.getElementById('mobile-main-controls');
+    const lightControls = document.getElementById('mobile-light-controls');
     const pauseBtn = document.getElementById('mobile-pause-btn');
     const skyboxBtn = document.getElementById('mobile-skybox-btn');
+    const lightBtn = document.getElementById('mobile-light-btn');
+    const lightBackBtn = document.getElementById('mobile-light-back-btn');
+    const lightKeyButtons = document.querySelectorAll('[data-light-key]');
+
+    function showMainMobileControls() {
+        clearLightKeys();
+        if (mainControls) {
+            mainControls.classList.remove('hidden');
+        }
+        if (lightControls) {
+            lightControls.classList.add('hidden');
+        }
+    }
+
+    function showLightMobileControls() {
+        clearLightKeys();
+        if (mainControls) {
+            mainControls.classList.add('hidden');
+        }
+        if (lightControls) {
+            lightControls.classList.remove('hidden');
+        }
+    }
+
+    function bindHoldButton(button, key) {
+        if (!button) return;
+
+        button.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            button.setPointerCapture(e.pointerId);
+            pressLightKey(key);
+        });
+
+        button.addEventListener('pointerup', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            releaseLightKey(key);
+        });
+
+        button.addEventListener('pointercancel', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            releaseLightKey(key);
+        });
+
+        button.addEventListener('pointerleave', () => {
+            releaseLightKey(key);
+        });
+    }
 
     function togglePause() {
         appState.isPaused = !appState.isPaused;
@@ -79,11 +180,32 @@ function initInputHandlers(canvas) {
     }
 
     window.addEventListener('keydown', (e) => {
+        const key = e.key.toLowerCase();
+
+        if (isLightMovementKey(key)) {
+            pressedKeys.add(key);
+            e.preventDefault();
+            if (pressedKeys.size === 1) {
+                lastLightMoveTime = performance.now();
+                moveLight(0.0);
+            }
+            return;
+        }
+
         if (e.key === 'p' || e.key === 'P') {
             togglePause();
         }
-        if (e.key === 's' || e.key === 'S') {
+
+        if (e.key === 'b' || e.key === 'B') {
             cycleSkybox();
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        const key = e.key.toLowerCase();
+        if (isLightMovementKey(key)) {
+            pressedKeys.delete(key);
+            e.preventDefault();
         }
     });
 
@@ -104,6 +226,28 @@ function initInputHandlers(canvas) {
         skyboxBtn.addEventListener('mousedown', (e) => e.stopPropagation());
         skyboxBtn.addEventListener('touchstart', (e) => e.stopPropagation());
     }
+
+    if (lightBtn) {
+        lightBtn.addEventListener('click', () => {
+            showLightMobileControls();
+        });
+        lightBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+        lightBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+    }
+
+    if (lightBackBtn) {
+        lightBackBtn.addEventListener('click', () => {
+            showMainMobileControls();
+        });
+        lightBackBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+        lightBackBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+    }
+
+    lightKeyButtons.forEach((button) => {
+        bindHoldButton(button, button.dataset.lightKey);
+    });
+
+    requestAnimationFrame(updateLightMovement);
 
     // --- CONTROLLI TOUCH (Mobile) ---
     canvas.addEventListener('touchstart', (e) => {
