@@ -223,7 +223,7 @@
         Il <em>Vertex Shader</em> riceve entrambi gli attributi, li moltiplica per 
         la matrice <code>u_worldInverseTranspose</code> per portarli nel corretto 
         spazio del mondo, e li passa al <em>Fragment Shader</em> come variabili 
-        <code>varying</code>. All'interno del Fragment Shader, una variabile 
+        <code>varying</code>. All'interno del <em>Fragment Shader</em>, una variabile 
         uniforme booleana (<code>u_useFlatShading</code>, controllabile tramite 
         la GUI utente) agisce da switch logico e permette di decidere istantaneamente 
         quale dei due vettoriutilizzare nel calcolo del 
@@ -246,10 +246,10 @@
         Per evitare che il tavolo e gli oggetti sembrino fluttuare nel 
         vuoto dello sfondo, è stato introdotto un ampio piano poligonale 
         che funge da pavimento, la cui texture viene campionata applicando 
-        un moltiplicatore di scala alle coordinate UV nel Vertex Shader per 
+        un moltiplicatore di scala alle coordinate UV nel <em>Vertex Shader</em> per 
         eseguire un tiling fitto ed evitarne la sgranatura. 
         Affinché il terreno si fonda in maniera naturale con l'orizzonte della 
-        skybox, nel fragment shader del pavimento è stato implementato 
+        skybox, nel <em>Fragment Shader</em> del pavimento è stato implementato 
         un effetto nebbia basato sulla distanza euclidea dalla telecamera. 
         Utilizzando la funzione <code>smoothstep</code>, viene calcolato un 
         fattore di interpolazione che miscela linearmente la texture del prato 
@@ -282,7 +282,7 @@
         (<code>gl.cullFace(gl.FRONT)</code>) per renderizzare il retro interno 
         del vetro, e subito dopo con il culling posteriore 
         (<code>gl.cullFace(gl.BACK)</code>) per sovrapporre la parete 
-        anteriore applicando la trasparenza (Alpha).
+        anteriore applicando la trasparenza.
     </p>
 
     <h3>Ombre</h3>
@@ -299,7 +299,10 @@
             esteso unicamente nell'area circoscritta del tavolo. In questo modo si evita di sprecare 
             risoluzione sulla vasta area del pavimento infinito, massimizzando la precisione dell'ombra 
             e dei dettagli degli oggetti appoggiati sul tavolo (i quali possono così proiettare ombre 
-            più definite e farsi ombra a vicenda). 
+            più definite e farsi ombra a vicenda).
+            Per prevenire artefatti visivi (<em>shadow acne</em>), il <em>depth bias</em> 
+            non viene calcolato manualmente nello shader, ma è gestito nativamente via hardware 
+            applicando un <strong>Polygon Offset</strong> durante la fase di generazione della mappa. 
             <br><br>
             Per riflettere accuratamente la sorgente luminosa attiva, lo shader adotta due tipi di proiezione 
             della camera di luce:
@@ -340,7 +343,7 @@
         </li>
     </ol>
 
-    <h3><em>Bump Mapping</em></h3>
+    <h3>Bump Mapping</h3>
     <p>
         Il bump mapping è una tecnica che permette di simulare la rugosità superficiale perturbando le normali 
         usate nel calcolo dell'illuminazione, senza modificare la geometria reale.
@@ -348,19 +351,13 @@
         della tovaglia scozzese e del materiale ligneo del tavolo.
     </p>
     <p>
-        Nel Fragment Shader, a partire dalla normale interpolata, vengono ricavati
-        per prodotto vettoriale i vettori <code>tangent</code> e <code>binormal</code>
-        che definiscono il piano tangente locale. Lo shader campiona quindi tre punti
-        della bump map (nel punto corrente e traslato lungo U e V) e usa le
-        differenze di luminosità come gradiente di altezza. Questo gradiente,
-        proiettato in spazio world tramite <code>tangent</code> e <code>binormal</code>,
-        perturba la normale prima del calcolo Phong: dove la superficie "sale",
-        la normale si inclina, modificando localmente la risposta alla luce e
-        creando l'illusione di rilievo. Le bump map sono caricate con filtro
-        <code>NEAREST</code> per garantire che ogni sample cada esattamente al 
-        centro di un texel, producendo gradienti stabili e privi di artefatti.
-        Tavolo e tovaglia usano parametri distinti, calibrati sulla risoluzione
-        e sul contenuto delle rispettive bump map.
+        Nel Fragment Shader, lo spazio tangente viene costruito a partire dalla normale e dal 
+        vettore tangente pre-calcolato e interpolato dalla geometria. 
+        Ottenuto il piano locale, lo shader adotta il metodo delle differenze centrali: campiona la bump map (con filtro 
+        <code>NEAREST</code> per maggiore stabilità) in quattro punti adiacenti per estrarre un 
+        gradiente di altezza simmetrico. Questo gradiente perturba la normale prima 
+        dell'illuminazione Phong per creare l'illusione del rilievo, utilizzando parametri di 
+        intensità e scala calibrati ad hoc per il tavolo e la tovaglia.
     </p>
     
     <h2>Sistema di Controllo e Funzionalità dell'Applicazione</h2>

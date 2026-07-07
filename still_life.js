@@ -165,7 +165,6 @@ async function main() {
         shadowsEnabled: gl.getUniformLocation(program, "u_shadowsEnabled"),
         alpha: gl.getUniformLocation(program, "u_alpha"),
         isEmissive: gl.getUniformLocation(program, "u_isEmissive"),
-        isDoubleSided: gl.getUniformLocation(program, "u_isDoubleSided"),
         useFlatShading: gl.getUniformLocation(program, "u_useFlatShading"),
         Ka: gl.getUniformLocation(program, "u_Ka"),
         Kd: gl.getUniformLocation(program, "u_Kd"),
@@ -252,7 +251,7 @@ async function main() {
     const matCloth = { Ka: 1.0, Kd: 0.8, Ks: 0.05, shininess: 2.0 };
 
     // Helper per disegnare velocemente nel render loop
-    function drawObject(currentProgramInfo, buffers, texture, alpha, material = defaultMaterial, worldMatrix = m4.identity(), isDoubleSided = false, bumpTexture = null, bumpOptions = {}, isEmissive = false) {
+    function drawObject(currentProgramInfo, buffers, texture, alpha, material = defaultMaterial, worldMatrix = m4.identity(), bumpTexture = null, bumpOptions = {}, isEmissive = false) {
         webglUtils.setBuffersAndAttributes(gl, currentProgramInfo, buffers);
         gl.uniformMatrix4fv(gl.getUniformLocation(currentProgramInfo.program, "u_world"), false, worldMatrix);
 
@@ -265,7 +264,6 @@ async function main() {
             gl.bindTexture(gl.TEXTURE_2D, texture);
             gl.uniform1f(locations.alpha, alpha);
             gl.uniform1i(locations.isEmissive, isEmissive ? 1 : 0);
-            gl.uniform1i(locations.isDoubleSided, isDoubleSided ? 1 : 0);
             gl.uniform1i(locations.useFlatShading, renderStyleState.shadingType === 'Flat' ? 1 : 0);
             gl.uniform1f(locations.Ka, material.Ka);
             gl.uniform1f(locations.Kd, material.Kd);
@@ -303,7 +301,7 @@ async function main() {
         const shadowPass = options.shadowPass === true;
         const { flyWorldMatrices, butterflyWorldMatrices, cameraPosition } = sceneState;
 
-        drawObject(currentProgramInfo, tavoloBuffers, tavoloTexture, 1.0, matWood, m4.identity(), false, tavoloBumpTexture, {
+        drawObject(currentProgramInfo, tavoloBuffers, tavoloTexture, 1.0, matWood, m4.identity(), tavoloBumpTexture, {
             strength: 5.0,
             scale: 3.0,
             width: 1024.0,
@@ -314,9 +312,9 @@ async function main() {
         drawObject(currentProgramInfo, etichettaBuffers, etichettaTexture, 1.0);
         
 
-        drawObject(currentProgramInfo, tovagliaBuffers, tovagliaTexture, 1.0, matCloth, m4.identity(), false, tovagliaBumpTexture, {
-            strength: 0.7,
-            scale: 10.0,
+        drawObject(currentProgramInfo, tovagliaBuffers, tovagliaTexture, 1.0, matCloth, m4.identity(), tovagliaBumpTexture, {
+            strength: 1.0,
+            scale: 1.0,
             width: 512.0,
             height: 512.0,
         });         
@@ -329,8 +327,8 @@ async function main() {
         drawObject(currentProgramInfo, butterflyCorpoBuffers, butterflyTexture, 1.0, defaultMaterial, butterflyWorldMatrices.butterflyBaseMatrixAnimated);
         
         gl.disable(gl.CULL_FACE);
-        drawObject(currentProgramInfo, butterflyAladxBuffers, butterflyTexture, 1.0, defaultMaterial, butterflyWorldMatrices.butterflyAladxWorldMatrixAnimated, true);
-        drawObject(currentProgramInfo, butterflyAlasxBuffers, butterflyTexture, 1.0, defaultMaterial, butterflyWorldMatrices.butterflyAlasxWorldMatrixAnimated, true);
+        drawObject(currentProgramInfo, butterflyAladxBuffers, butterflyTexture, 1.0, defaultMaterial, butterflyWorldMatrices.butterflyAladxWorldMatrixAnimated);
+        drawObject(currentProgramInfo, butterflyAlasxBuffers, butterflyTexture, 1.0, defaultMaterial, butterflyWorldMatrices.butterflyAlasxWorldMatrixAnimated);
         gl.enable(gl.CULL_FACE);
 
 
@@ -457,8 +455,7 @@ async function main() {
             gl.disable(gl.BLEND);
 
             gl.enable(gl.POLYGON_OFFSET_FILL);
-            gl.polygonOffset(6.0, 12.0);
-
+            gl.polygonOffset(1.0, 1.0);
             drawSceneObjects(depthProgramInfo, { flyWorldMatrices, butterflyWorldMatrices, cameraPosition }, { includeTransparent: true, shadowPass: true });
             gl.disable(gl.POLYGON_OFFSET_FILL);
         }
@@ -557,7 +554,6 @@ async function main() {
         gl.uniform3fv(locations.viewPos, cameraPosition); 
         gl.uniform3fv(locations.ambient, [lightState.ambientR, lightState.ambientG, lightState.ambientB]); 
         gl.uniform3fv(locations.lightColor, [lightState.lightR, lightState.lightG, lightState.lightB]);
-        gl.uniform3fv(locations.objectColor, [0.8, 0.8, 0.8]); 
         gl.uniform1i(locations.diffuseMap, 0);
         gl.activeTexture(gl.TEXTURE1);
         gl.bindTexture(gl.TEXTURE_2D, depthTexture);
@@ -569,7 +565,7 @@ async function main() {
 
         if(appState.currentSkybox == 'Nessuna' ) {
         const lightBulbWorldMatrix = m4.translation(lightState.x, lightState.y - 0.117, lightState.z);
-        drawObject(programInfo, lightBulbBuffers, lightBulbTexture, 1.0, defaultMaterial, lightBulbWorldMatrix, false, null, {}, true);
+        drawObject(programInfo, lightBulbBuffers, lightBulbTexture, 1.0, defaultMaterial, lightBulbWorldMatrix, null, {}, true);
 
         const wireMatrix = m4.translation(lightState.x, lightState.y, lightState.z);
         const scaledWireMatrix = m4.scale(wireMatrix, 0.03, 50.0, 0.03);

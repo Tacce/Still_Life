@@ -10,6 +10,7 @@ async function loadMeshWithGLM(url) {
     let positions = [];
     let normals = [];
     let texCoords = [];
+    let tangents = [];
     let flatNormals = [];
 
     for (let i = 1; i <= mesh.nface; i++) {
@@ -25,6 +26,32 @@ async function loadMeshWithGLM(url) {
                 uv.push([mesh.textCoords[tIdx].u, mesh.textCoords[tIdx].v]);
             } else {
                 uv.push([0, 0]);
+            }
+        }
+
+        let tx = 1.0;
+        let ty = 0.0;
+        let tz = 0.0;
+
+        if (p.length >= 3 && uv.length >= 3) {
+            const edge1 = [p[1][0] - p[0][0], p[1][1] - p[0][1], p[1][2] - p[0][2]];
+            const edge2 = [p[2][0] - p[0][0], p[2][1] - p[0][1], p[2][2] - p[0][2]];
+            const deltaUV1 = [uv[1][0] - uv[0][0], uv[1][1] - uv[0][1]];
+            const deltaUV2 = [uv[2][0] - uv[0][0], uv[2][1] - uv[0][1]];
+
+            const denom = deltaUV1[0] * deltaUV2[1] - deltaUV2[0] * deltaUV1[1];
+            if (Math.abs(denom) > 1e-8) {
+                const r = 1.0 / denom;
+                tx = (edge1[0] * deltaUV2[1] - edge2[0] * deltaUV1[1]) * r;
+                ty = (edge1[1] * deltaUV2[1] - edge2[1] * deltaUV1[1]) * r;
+                tz = (edge1[2] * deltaUV2[1] - edge2[2] * deltaUV1[1]) * r;
+
+                const tangentLength = Math.hypot(tx, ty, tz);
+                if (tangentLength > 1e-8) {
+                    tx /= tangentLength;
+                    ty /= tangentLength;
+                    tz /= tangentLength;
+                }
             }
         }
 
@@ -47,6 +74,8 @@ async function loadMeshWithGLM(url) {
                 texCoords.push(0, 0);
             }
 
+            tangents.push(tx, ty, tz);
+
             flatNormals.push(fNorm.i, fNorm.j, fNorm.k);
         }
     }
@@ -55,6 +84,7 @@ async function loadMeshWithGLM(url) {
         position: { numComponents: 3, data: new Float32Array(positions) },
         normal: { numComponents: 3, data: new Float32Array(normals) },
         texcoord: { numComponents: 2, data: new Float32Array(texCoords) },
+        tangent: { numComponents: 3, data: new Float32Array(tangents) },
         flatNormal: { numComponents: 3, data: new Float32Array(flatNormals) },
     };
 }

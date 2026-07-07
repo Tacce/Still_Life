@@ -7,8 +7,6 @@ function define_gui() {
     gui.width = 320;
     gui.close();
 
-    let shadingToggleController = null;
-
     const defaultCameraState = {
         angleX: 0.17,
         angleY: -1.5,
