@@ -2,7 +2,6 @@ function loadCubemapFromCross(gl, url) {
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
 
-    // Allocazione iniziale di sicurezza con pixel grigi temporanei
     const faceTargets = [
         gl.TEXTURE_CUBE_MAP_POSITIVE_X, // Right
         gl.TEXTURE_CUBE_MAP_NEGATIVE_X, // Left
@@ -18,7 +17,6 @@ function loadCubemapFromCross(gl, url) {
     const image = new Image();
     image.src = url;
     image.onload = function() {
-        // Calcoliamo la dimensione di una singola faccia quadrata
         // In una croce orizzontale, la larghezza totale è 4 volte la faccia
         const faceSize = image.width / 4;
 
@@ -40,7 +38,6 @@ function loadCubemapFromCross(gl, url) {
 
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
         
-        // Disattiviamo l'inversione Y di WebGL solo per la Skybox!
         // Le cubemap vogliono l'orientamento nativo delle coordinate di Blender
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
 
@@ -51,8 +48,8 @@ function loadCubemapFromCross(gl, url) {
             // Ritagliamo la porzione corretta dall'immagine originale e la stampiamo sul canvas 2D
             ctx.drawImage(
                 image,
-                coords.col * faceSize, coords.row * faceSize, faceSize, faceSize, // Sorgente ritaglio
-                0, 0, faceSize, faceSize                                         // Destinazione canvas
+                coords.col * faceSize, coords.row * faceSize, faceSize, faceSize, 
+                0, 0, faceSize, faceSize                                        
             );
 
             // Passiamo i pixel estratti a WebGL
@@ -111,7 +108,7 @@ function createFloorBufferInfo(gl) {
             0, 0,
             1, 0,
             0, 1,
-            1, 1,  // repeat x4 della texture
+            1, 1,  
         ])},
         indices: [0, 2, 1, 1, 2, 3],
     });

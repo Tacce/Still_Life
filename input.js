@@ -5,10 +5,19 @@ function initInputHandlers(canvas) {
     let lastMouseX = 0;
     let lastMouseY = 0;
 
+    function wrapAngle(angle) {
+        const twoPi = Math.PI * 2;
+        return ((angle + Math.PI) % twoPi + twoPi) % twoPi - Math.PI;
+    }
+
     const pressedKeys = new Set();
     let lastLightMoveTime = performance.now();
 
     function moveLight(deltaSeconds) {
+        if (!canMoveLight()) {
+            return;
+        }
+
         const speed = 10.0;
         const step = speed * deltaSeconds;
 
@@ -29,6 +38,10 @@ function initInputHandlers(canvas) {
     }
 
     function pressLightKey(key) {
+        if (!canMoveLight()) {
+            return;
+        }
+
         pressedKeys.add(key);
         if (pressedKeys.size === 1) {
             lastLightMoveTime = performance.now();
@@ -44,11 +57,18 @@ function initInputHandlers(canvas) {
     }
 
     function updateLightMovement(now) {
-        const delta = (now - lastLightMoveTime) / 1000.0;
-        lastLightMoveTime = now;
+        if (canMoveLight()) {
+            const delta = (now - lastLightMoveTime) / 1000.0;
+            lastLightMoveTime = now;
 
-        if (pressedKeys.size > 0) {
-            moveLight(delta);
+            if (pressedKeys.size > 0) {
+                moveLight(delta);
+            }
+        } else {
+            lastLightMoveTime = now;
+            if (pressedKeys.size > 0) {
+                clearLightKeys();
+            }
         }
 
         requestAnimationFrame(updateLightMovement);
@@ -77,6 +97,7 @@ function initInputHandlers(canvas) {
     canvas.addEventListener('mousemove', (e) => {
         if (isDragging) {
             cameraState.angleY -= (e.clientX - lastMouseX) * 0.01; 
+            cameraState.angleY = wrapAngle(cameraState.angleY);
             cameraState.angleX += (e.clientY - lastMouseY) * 0.01;
             
             const limit = Math.PI / 2 - 0.05;
@@ -107,6 +128,22 @@ function initInputHandlers(canvas) {
     const lightBtn = document.getElementById('mobile-light-btn');
     const lightBackBtn = document.getElementById('mobile-light-back-btn');
     const lightKeyButtons = document.querySelectorAll('[data-light-key]');
+
+    function canMoveLight() {
+        return appState.currentSkybox === 'Nessuna';
+    }
+
+    function syncLightControlsVisibility() {
+        const lightMovementAllowed = canMoveLight();
+
+        if (lightBtn) {
+            lightBtn.classList.toggle('hidden', !lightMovementAllowed);
+        }
+
+        if (!lightMovementAllowed && lightControls && !lightControls.classList.contains('hidden')) {
+            showMainMobileControls();
+        }
+    }
 
     function showMainMobileControls() {
         clearLightKeys();
@@ -182,7 +219,7 @@ function initInputHandlers(canvas) {
     window.addEventListener('keydown', (e) => {
         const key = e.key.toLowerCase();
 
-        if (isLightMovementKey(key)) {
+        if (isLightMovementKey(key) && canMoveLight()) {
             pressedKeys.add(key);
             e.preventDefault();
             if (pressedKeys.size === 1) {
@@ -229,6 +266,10 @@ function initInputHandlers(canvas) {
 
     if (lightBtn) {
         lightBtn.addEventListener('click', () => {
+            if (!canMoveLight()) {
+                return;
+            }
+
             showLightMobileControls();
         });
         lightBtn.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -247,18 +288,21 @@ function initInputHandlers(canvas) {
         bindHoldButton(button, button.dataset.lightKey);
     });
 
+    window.updateLightControlsVisibility = syncLightControlsVisibility;
+    syncLightControlsVisibility();
+
     requestAnimationFrame(updateLightMovement);
 
     // --- CONTROLLI TOUCH (Mobile) ---
     canvas.addEventListener('touchstart', (e) => {
         if (e.touches.length === 1) {
-            // 1 DITO: Inizia la rotazione
+            // 1 dito :rotazione
             isDragging = true;
             isPinching = false;
             lastMouseX = e.touches[0].clientX;
             lastMouseY = e.touches[0].clientY;
         } else if (e.touches.length === 2) {
-            // 2 DITA: Inizia lo zoom
+            // 2 dita: zoom
             isDragging = false; // Ferma la rotazione
             isPinching = true;
             lastPinchDistance = getPinchDistance(e.touches);
@@ -274,6 +318,7 @@ function initInputHandlers(canvas) {
             const deltaX = e.touches[0].clientX - lastMouseX;
             const deltaY = e.touches[0].clientY - lastMouseY;
             cameraState.angleY += deltaX * 0.01;
+            cameraState.angleY = wrapAngle(cameraState.angleY);
             cameraState.angleX += deltaY * 0.01;
             
             const limit = Math.PI / 2 - 0.05;
@@ -295,7 +340,7 @@ function initInputHandlers(canvas) {
             cameraState.D += pinchDelta * sensibility;
             cameraState.D = Math.max(2.0, Math.min(20.0, cameraState.D));
             
-            // Salva la nuova distanza per il frame successivo
+            // Salviamo la nuova distanza per il frame successivo
             lastPinchDistance = currentPinchDistance;
         }
     }, {passive: false});

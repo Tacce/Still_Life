@@ -39,6 +39,10 @@
             display: none;
         }
 
+        .hidden {
+            display: none !important;
+        }
+
         #mobile-light-controls {
             flex-direction: column;
             align-items: flex-end;
@@ -210,12 +214,17 @@
 
             //BUMP MAPPING
             if (u_useBumpMap) {
-                // Ricostruisci tangent/binormal dalla normale in world space
+                // Costruisce tangent/binormal dalla normale in world space
                 vec3 n = normal;
                 
                 // Scegliamo un vettore "up" che non sia parallelo alla normale
-                vec3 up = abs(n.y) < 0.999 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
-                vec3 tangent  = normalize(cross(up, n));
+                //vec3 up = abs(n.y) < 0.999 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+                //vec3 tangent  = normalize(cross(up, n));
+                float blend = smoothstep(0.9, 0.999, abs(n.y));
+                vec3 upY = vec3(0.0, 1.0, 0.0);
+                vec3 upX = vec3(1.0, 0.0, 0.0);
+                vec3 up = normalize(mix(upY, upX, blend));
+                vec3 tangent = normalize(cross(up, n));
                 vec3 binormal = cross(n, tangent);
 
                 vec2 texelSize = u_bumpScale / u_bumpMapSize;
@@ -232,11 +241,7 @@
             vec3 surfaceToViewDirection = normalize(u_viewWorldPosition - v_surfaceWorldPosition);
             
             vec3 projectedTexcoord = v_projectedTexcoord.xyz / v_projectedTexcoord.w;
-            float cosTheta = clamp(dot(normal, surfaceToLightDirection), 0.0, 1.0);
-            //float bias = mix(0.004, 0.005, cosTheta);
-            //float bias = max(0.01 * (1.0 - cosTheta), 0.005);
-            float bias = 0.0001;
-            float currentDepth = projectedTexcoord.z - bias;
+            float currentDepth = projectedTexcoord.z;
 
             bool inRange =
                 projectedTexcoord.x >= 0.0 && projectedTexcoord.x <= 1.0 &&
@@ -247,28 +252,6 @@
                 float projectedDepth = texture2D(u_projectedTexture, projectedTexcoord.xy).r;
                 shadowLight = (inRange && projectedDepth <= currentDepth) ? 0.0 : 1.0;
             }
-
-            // Soft shadows con PCF
-            /*float shadowLight = 0.0;
-            if (u_shadowsEnabled) {
-                float texelSize = 1.0 / 2048.0;
-                for (int x = -1; x <= 1; x++) {
-                    for (int y = -1; y <= 1; y++) {
-                        vec2 offset = vec2(float(x), float(y)) * texelSize;
-                        float projectedDepth = texture2D(u_projectedTexture, projectedTexcoord.xy + offset).r;
-                        if (inRange) {
-                            // Se siamo dentro la mappa, controlliamo normalmente se c'è un ostacolo
-                            shadowLight += (projectedDepth <= currentDepth) ? 0.0 : 1.0;
-                        } else {
-                            // Se siamo fuori dalla mappa, controlliamo l'altezza del pixel nel mondo.
-                            shadowLight += (v_surfaceWorldPosition.y < -0.01) ? 0.0 : 1.0;
-                        }
-                    }
-                }
-                shadowLight /= 9.0;
-            } else {
-                shadowLight = 1.0;
-            }*/
 
             // --- PHONG ---
 
@@ -291,7 +274,6 @@
                 specular = pow(specAngle, u_shininess);
             }
 
-            // Miscelazione finale dei materiali
             vec3 ambientTerm = u_Ka * u_ambientLight * texColor.rgb;
             vec3 diffuseTerm = u_Kd * lambertian * texColor.rgb * u_lightColor * shadowLight;
             vec3 specularTerm = u_Ks * specular * u_lightColor * shadowLight;
@@ -319,7 +301,7 @@
         precision mediump float;
 
         void main() {
-            gl_FragColor = vec4(0.1, 0, 0, 1.0);
+            gl_FragColor = vec4(0.10, 0.04, 0.01, 1.0);
         }
     </script>
     <script id="depth-vertex-shader" type="x-shader/x-vertex">
@@ -382,9 +364,9 @@
         void main() {
             vec4 worldPos = u_world * a_position;
             v_worldPos = worldPos.xyz;
-            v_texcoord = a_texcoord * 100.0; // Moltiplicatore per non sgranare l'erba
+            v_texcoord = a_texcoord * 100.0; // Moltiplicatore per non sgranare la texture del pavimento
             
-            v_projectedTexcoord = u_textureMatrix * worldPos; //  (Calcola la pos. dell'ombra)
+            v_projectedTexcoord = u_textureMatrix * worldPos;
             
             gl_Position = u_projection * u_view * worldPos;
         }
@@ -447,7 +429,7 @@
         float t = (u_floorY - startPos.y) / dir.y;
         vec3 shadowPos = startPos + dir * t;
 
-        shadowPos.y = u_floorY + 0.05; // Antisfarfallio
+        shadowPos.y = u_floorY + 0.05;
         v_shadowPos = shadowPos;
 
         gl_Position = u_projection * u_view * vec4(shadowPos, 1.0);
@@ -459,22 +441,26 @@
 
         uniform vec3 u_cameraPos;
         varying vec3 v_shadowPos;
+        uniform vec3 u_ambientLight;
 
         void main() {
+            // Se è notte le ombre diventano più scure, se è giorno diventano più chiare
+            float ambientLight = (u_ambientLight.r + u_ambientLight.g + u_ambientLight.b);
+            float dynamicAlpha = mix(0.9, 0.6, clamp(ambientLight, 0.0, 1.0));
             // Distanza dell'ombra dalla telecamera (solo su X e Z)
             float dist = length(v_shadowPos.xz - u_cameraPos.xz);
             float fogFactor = smoothstep(50.0, 200.0, dist);
-            float finalAlpha = mix(0.6, 0.0, fogFactor);
+            float finalAlpha = mix(dynamicAlpha,  0.0, fogFactor);
             gl_FragColor = vec4(0.0, 0.0, 0.0, finalAlpha); 
         }
     </script>
 
     <script src="resources/m4.js"></script>
     <script src="resources/webgl-utils.js"></script>
-    <script src="resources/mesh_utils.js"></script> <!-- Assicurati di averlo! -->
+    <script src="resources/mesh_utils.js"></script> 
     <script src="resources/glm_utils.js"></script>
     <script src="resources/dat.gui.js"></script>
-    
+    <script src="loader.js"></script>
     <script src="gui.js"></script>
     <script src="skybox.js"></script>
     <script src="animation.js"></script>

@@ -94,7 +94,6 @@ function define_gui() {
         .onChange((value) => {
             if (window.changeEnvironment) {
                 window.changeEnvironment(value);
-                // Forza la GUI ad aggiornare i cursori della luce
                 refreshControllers(gui);
             }
         });
@@ -102,7 +101,6 @@ function define_gui() {
     envFolder.open();
 }
 
-// Aggiungi questa funzione in gui.js
 window.updateGuiDisplay = function() {
     function refreshRecursive(folder) {
         // Aggiorna i controller del folder attuale

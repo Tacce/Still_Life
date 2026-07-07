@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relazione Progetto WebGL</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, 
+                        Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .student-info {
+            background-color: #f2f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+            border-left: 5px solid #2980b9;
+        }
+        .student-info p {
+            margin: 5px 0;
+            font-weight: bold;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #2980b9;
+            margin-top: 30px;
+            border-bottom: 1px solid #bdc3c7;
+            padding-bottom: 5px;
+        }
+        h3 {
+            color: #34495e;
+            margin-top: 20px;
+        }
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+        ul {
+            margin-bottom: 20px;
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        code {
+            background-color: #eee;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: Consolas, monospace;
+            font-size: 0.9em;
+        }
+        .screenshot-container {
+            width: 100%;
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px 0;
+            text-align: center;
+            padding: 0 20px;
+        }
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 0.8em;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- DATI STUDENTE -->
+    <div class="student-info">
+        <p>Nome: [Il tuo Nome]</p>
+        <p>Cognome: [Il tuo Cognome]</p>
+        <p>Matricola: [La tua Matricola]</p>
+    </div>
+
+    <h1>Relazione Progetto 3D WebGL: "Still Life"</h1>
+
+    <h2>Introduzione</h2>
+    <p>
+        L'applicazione sviluppata è una 3D-WebApp interattiva 
+        sviluppata in JavaScript e WebGL. Il progetto si concentra 
+        sulla realizzazione di una scena tridimensionale ispirata 
+        al concetto di <em>Natura Morta</em>, noto genere pittorico 
+        che ritrae oggetti inanimati di uso quotidiano. 
+        La composizione presenta un tavolo con alcuni oggetti 
+        appoggiati: un fiasco, un bottiglione, una bottiglia di vino 
+        e una tovaglia scozzese piegata.
+    </p>
+    <p>
+        L'atmosfera puramente statica della composizione viene 
+        spezzata dall'inserimento dinamico di due insetti animati 
+        (una mosca e una farfalla) che introducono movimento e 
+        vitalità all'interno dell'ambiente geometrico. 
+        L'intera scena è interamente fruibile in tempo reale 
+        attraverso una visualizzazione in proiezione prospettica 
+        che garantisce il corretto senso di profondità e 
+        proporzione spaziale.
+    </p>
+
+    <div class="screenshot-container">
+        <img src="screenshots/intro.png" 
+             style="max-width: 100%; max-height: 100%;" 
+             alt="Panoramica Scena">
+    </div>
+
+    <h2>Gestione di Modelli e Texture</h2>
+    <p>
+        Tutti i modelli tridimensionali presenti nella scena sono 
+        mesh poligonali caricate dinamicamente a partire da file 
+        in formato <code>.obj</code> (Wavefront). Quasi tutte le mesh 
+        presenti sono state modellate da zero utilizzando Blender, 
+        software con il quale è stata gestita anche 
+        tutta la fase di <em>UV mapping</em>.
+    </p>
+    <p>
+        Per l'importazione e la gestione applicativa di queste 
+        geometrie, il progetto fa affidamento sulle librerie messe 
+        a disposizione durante il corso: in particolare 
+        <code>glm_utils.js</code> per il parsing testuale dei file OBJ, 
+        e <code>webgl-utils.js</code> per la creazione efficiente dei 
+        buffer di memoria associati.
+    </p>
+    <p>
+        L'integrazione delle mesh 
+        avviene tramite la funzione
+        <code>loadMeshWithGLM</code> che, appoggiandosi al parser, 
+        estrae i dati poligonali e prepara in parallelo i buffer per 
+        le posizioni, le coordinate texture e due set distinti di normali 
+        (normali di vertice e normali di faccia), fondamentali per supportare 
+        dinamicamente le diverse tecniche di shading previste dall'applicazione.
+    </p>
+    <p>
+        Il realismo visivo è garantito da un approccio misto al texture mapping. 
+        Alcuni modelli, come gli elementi in vetro colorato, utilizzano 
+        texture monocromatiche generate direttamente via software a runtime. 
+        Per i restanti oggetti della scena sono state impiegate texture 
+        basate su file immagine. Infine, per soddisfare il requisito relativo 
+        alla firma dell'autore, la foto personale è stata integrata all'interno 
+        della texture dell'etichetta, applicata sulla superficie frontale 
+        della bottiglia di vino.
+    </p>
+
+
+    <h2>Cinematica e Animazione dei Modelli</h2>
+    <p>
+        Per differenziarsi dalla staticità della composizione, 
+        le animazioni degli insetti (mosca e farfalla) sono calcolate 
+        matematicamente istante per 
+        istante secondo funzioni trigonometriche sul tempo virtuale.
+    </p>
+    <p>
+        L'animazione della <strong>mosca</strong> opera su coordinate 
+        locali con le ali che oscillano sull'asse X seguendo un'onda 
+        triangolare.
+        Successivamente, l'intero modello viene posizionato e orientato in un punto 
+        fisso della scena tramite la matrice globale <code>flyBaseMatrix</code>, mantenendo 
+        il movimento delle ali ancorato al corpo.
+    </p>
+    <p>
+        La <strong>farfalla</strong> esegue invece un comportamento 
+        cinematico globale combinato: le sue ali battono compiendo ampie 
+        rotazioni sull'asse Y (fino a 90 gradi), mentre il corpo si muove 
+        nello spazio seguendo un'orbita tridimensionale parametrica 
+        complessa definita da funzioni sinusoidali:
+    </p>
+    <p style="text-align: center; font-family: monospace; 
+              background-color: #eee; padding: 10px; border-radius: 4px;">
+        X = 5 * cos(t), &nbsp;&nbsp; Y = 3 + 0.5 * sin(6 * t), 
+        &nbsp;&nbsp; Z = 8 * sin(t)
+    </p>
+    <p>
+        Per far sì che l'insetto guardi realisticamente in avanti durante 
+        il volo, l'angolo di imbardata viene calcolato dinamicamente 
+        estraendo l'arcotangente goniometrica 
+        sul vettore tangente complanare XZ della traiettoria matematica.
+    </p>
+
+    <h2>Tecniche di Rendering Avanzate e Dettagli Implementativi</h2>
+    <p>
+        Il fulcro tecnico del progetto risiede nei moduli shader in 
+        linguaggio GLSL, strutturati per implementare contemporaneamente 
+        più tecniche avanzate di rendering.
+    </p>
+
+    <h3>Illuminazione di Phong</h3>
+    <p>
+        Il motore di rendering implementa il modello di illuminazione di 
+        Phong. Come previsto da questo modello matematico, gli oggetti 
+        nella scena presentano comportamenti ottici differenziati grazie alla 
+        definizione di diversi materiali (legno, vetro, tessuto) ai quali sono associati 
+        coefficienti specifici per la riflessione ambientale <code>K_a</code>, diffusa (<code>K_d</code>), 
+        speculare  <code>K_s</code> e per l'esponente di lucentezza (<code>shininess</code>):
+    </p>
+
+    <p>
+        Il sistema supporta simultaneamente sia lo shading Smooth che lo shading Flat. 
+        A livello architetturale, la funzione di parsing degli OBJ  
+        pre-calcola sempre due set di normali: <code>a_normal</code> (mediata per avere 
+        superfici lisce) e <code>a_flatNormal</code> (identica per tutti i 
+        vertici di una stessa faccia).
+        Il <em>Vertex Shader</em> riceve entrambi gli attributi, li moltiplica per 
+        la matrice <code>u_worldInverseTranspose</code> per portarli nel corretto 
+        spazio del mondo, e li passa al <em>Fragment Shader</em> come variabili 
+        <code>varying</code>. All'interno del Fragment Shader, una variabile 
+        uniforme booleana (<code>u_useFlatShading</code>, controllabile tramite 
+        la GUI utente) agisce da switch logico e permette di decidere istantaneamente 
+        quale dei due vettoriutilizzare nel calcolo del 
+        prodotto scalare per ricavare la componente iffusa di Lambert e la 
+        componente Speculare, applicandola alle proprietà del materiale attivo.
+    </p>
+
+    <h3>Skybox e Pavimento Infinito</h3>
+    <p>
+        Lo sfondo della scena è gestito tramite skybox caricate dal 
+        file <code>skybox.js</code> tramite la routine 
+        <code>loadCubemapFromCross</code>. Questa funzione accetta una 
+        singola texture con layout a "croce orizzontale" (griglia 4x3), 
+        utilizzando un <code>canvas 2D</code> nascosto per ritagliare e 
+        inviare a WebGL le sei facce della cubemap. L'applicazione consente 
+        di scegliere tra più skybox differenti (diurna o notturna) o di disattivare completamente lo sfondo,
+        lasciando la scena immersa nel buio.
+    </p>
+    <p>
+        Per evitare che il tavolo e gli oggetti sembrino fluttuare nel 
+        vuoto dello sfondo, è stato introdotto un ampio piano poligonale 
+        che funge da pavimento, la cui texture viene campionata applicando 
+        un moltiplicatore di scala alle coordinate UV nel Vertex Shader per 
+        eseguire un tiling fitto ed evitarne la sgranatura. 
+        Affinché il terreno si fonda in maniera naturale con l'orizzonte della 
+        skybox, nel fragment shader del pavimento è stato implementato 
+        un effetto nebbia basato sulla distanza euclidea dalla telecamera. 
+        Utilizzando la funzione <code>smoothstep</code>, viene calcolato un 
+        fattore di interpolazione che miscela linearmente la texture del prato 
+        con il colore campionato dalla skybox, dissolvendo dolcemente la geometria all'orizzonte.
+    </p>
+
+    <div class="screenshot-container">
+        <img src="screenshots/giorno.png" style="max-width: 100%; max-height: 100%;" >
+    </div>
+
+    <div class="screenshot-container">
+        <img src="screenshots/notte.png" style="max-width: 100%; max-height: 100%;" >
+    </div>
+
+
+    <h3><em>Alpha-Blending</em></h3>
+    <p>
+        Il rendering del vetro trasparente (fiasco e bottiglione) è gestito
+        mediante il cosiddetto <em>Algoritmo del Pittore</em>: ad ogni frame
+        viene ricalcolata la distanza euclidea tra il centro di ciascuna geometria in 
+        vetro e la posizione attuale della telecamera e sulla base di questa distanza, 
+        l'array degli oggetti trasparenti da renderizzare viene ordinato in senso decrescente. 
+        In questo modo, WebGL disegnerà sempre per primo l'oggetto fisicamente più lontano 
+        dal punto di vista dell'utente, assicurando un blending visivamente 
+        corretto da qualsiasi prospettiva ci si sposti.
+    </p>
+    <p>
+        Subito dopo l'ordinamento spaziale, ogni oggetto trasparente viene 
+        disegnato due volte: prima con il culling frontale 
+        (<code>gl.cullFace(gl.FRONT)</code>) per renderizzare il retro interno 
+        del vetro, e subito dopo con il culling posteriore 
+        (<code>gl.cullFace(gl.BACK)</code>) per sovrapporre la parete 
+        anteriore applicando la trasparenza (Alpha).
+    </p>
+
+    <h3>Ombre</h3>
+    <p>
+        L'applicazione gestisce un duplice sistema di ombre in tempo reale, in risposta ad una precisa esigenza di 
+        ottimizzazione delle risorse di rendering:
+    </p>
+    <ol>
+        <li>
+            <strong>Shadow Mapping:</strong> 
+            Sfruttando l'estensione <code>WEBGL_depth_texture</code>, la scena viene pre-renderizzata 
+            generando una mappa di profondità ad alta risoluzione. Poiché la texture di profondità ha 
+            una dimensione finita (4096px), il frustum della camera di luce viene concentrato ed 
+            esteso unicamente nell'area circoscritta del tavolo. In questo modo si evita di sprecare 
+            risoluzione sulla vasta area del pavimento infinito, massimizzando la precisione dell'ombra 
+            e dei dettagli degli oggetti appoggiati sul tavolo (i quali possono così proiettare ombre 
+            più definite e farsi ombra a vicenda). 
+            <br><br>
+            Per riflettere accuratamente la sorgente luminosa attiva, lo shader adotta due tipi di proiezione 
+            della camera di luce:
+            <ul>
+                <li>
+                    <strong>Proiezione Ortografica:</strong> attivata negli scenari all'aperto 
+                    ("Giorno" e "Notte") per simulare i raggi paralleli provenienti da sorgenti 
+                    luminose poste all'infinito (il Sole o la Luna).
+                </li>
+                <li>
+                    <strong>Proiezione Prospettica:</strong> attivata nello scenario senza skybox, 
+                    dove la luce è emessa dalla lampadina (sorgente puntiforme vicina), producendo 
+                    raggi divergenti radiali coerenti con la sua posizione fisica. In questo caso
+                    il frustum è orientato verso il basso in modo da generare raggi radiali che 
+                    proiettano le ombre sul tavolo in tutte le direzioni.
+                </li>
+            </ul>
+        </li>
+        <li>
+            <strong>Ombre Planari:</strong> 
+            Per proiettare l'ombra degli oggetti sul pavimento 
+            viene adottata una proiezione geometrica piana  che schiaccia i vertici 
+            della mesh lungo la direzione del raggio luminoso. Questa soluzione svincola l'ombra sul 
+            terreno dai limiti di pixel della Shadow Map, permettendole di estendersi teoricamente 
+            fino all'orizzonte del piano infinito senza alcuna sgranatura. 
+            <br><br>
+            Poiché l'ombra sul pavimento è semi-trasparente, la sovrapposizione geometrica delle proiezioni 
+            (es. l'ombra del fiasco sopra l'ombra del tavolo) provocherebbe un accumulo irrealistico dei 
+            canali alpha. Per evitare questo problema è stato utilizzato lo <strong>Stencil Buffer</strong>:
+            <ul>
+                <li><code>gl.stencilFunc(gl.EQUAL, 0, 0xFF);</code> 
+                Disegna l'ombra planare solo se lo stencil in quel punto è 0.</li>
+                <li><code>gl.stencilOp(gl.KEEP, gl.KEEP, gl.INCR);</code> 
+                Incrementa il valore dello stencil a 1 non appena il primo pixel d'ombra viene disegnato.</li>
+            </ul>
+            In questo modo, i pixel del pavimento già ombreggiati vengono bloccati, garantendo un'intensità 
+            dell'ombra planare uniforme in tutta l'area del terreno.
+        </li>
+    </ol>
+
+    <h3><em>Bump Mapping</em></h3>
+    <p>
+        Il bump mapping è una tecnica che permette di simulare la rugosità superficiale perturbando le normali 
+        usate nel calcolo dell'illuminazione, senza modificare la geometria reale.
+        Nel progetto questa tecnica è stata implementata per aumentare il realismo del tessuto
+        della tovaglia scozzese e del materiale ligneo del tavolo.
+    </p>
+    <p>
+        Nel Fragment Shader, a partire dalla normale interpolata, vengono ricavati
+        per prodotto vettoriale i vettori <code>tangent</code> e <code>binormal</code>
+        che definiscono il piano tangente locale. Lo shader campiona quindi tre punti
+        della bump map (nel punto corrente e traslato lungo U e V) e usa le
+        differenze di luminosità come gradiente di altezza. Questo gradiente,
+        proiettato in spazio world tramite <code>tangent</code> e <code>binormal</code>,
+        perturba la normale prima del calcolo Phong: dove la superficie "sale",
+        la normale si inclina, modificando localmente la risposta alla luce e
+        creando l'illusione di rilievo. Le bump map sono caricate con filtro
+        <code>NEAREST</code> per garantire che ogni sample cada esattamente al 
+        centro di un texel, producendo gradienti stabili e privi di artefatti.
+        Tavolo e tovaglia usano parametri distinti, calibrati sulla risoluzione
+        e sul contenuto delle rispettive bump map.
+    </p>
+    
+    <h2>Sistema di Controllo e Funzionalità dell'Applicazione</h2>
+    <p>
+        L'applicazione consente di manipolare dinamicamente l'ambiente 
+        3D e le sue luci attraverso funzionalità progettate per essere 
+        accessibili in modo fluido da diverse tipologie di dispositivi.
+    </p>
+
+    <h3>Scelta dello Scenario e Movimento della Lampadina</h3>
+    <p>
+        L'utente può variare dinamicamente lo scenario di sfondo passando da una 
+        skybox diurna ad una notturna. Quando si seleziona l'opzione "Nessuna Skybox", l'illuminazione 
+        è affidata unicamente ad una lampadina virtuale tridimensionale che 
+        l'utente può pilotare nello spazio, aggiornando interattivamente 
+        e in tempo reale la direzione dei vettori luce, la proiezione delle ombre 
+        e i riflessi sui vari oggetti.
+    </p>
+
+    <h3>Controlli su Desktop</h3>
+    <p>
+        Su desktop, la rotazione orbitale della telecamera avviene trascinando 
+        il mouse col tasto sinistro e lo zoom tramite la rotellina. 
+        La lampadina si sposta nello spazio con i tasti <code>W, A, S, D, Q, E</code>, 
+        mentre le scorciatoie veloci <code>P</code> e <code>B</code> servono, 
+        rispettivamente, a mettere in pausa le animazioni e a cambiare lo 
+        scenario in tempo reale.
+    </p>
+
+    <h3>Interazione e Overlay su Dispositivi Mobile</h3>
+    <p>
+        Sui dispositivi touch, la rotazione orbitale della camera viene gestita tramite 
+        swipe a singolo dito, mentre lo zoom sfrutta una gesture nativa di <em>Pinch-to-Zoom</em> 
+        (calcolando la variazione di distanza euclidea tra due tocchi simultanei). 
+    </p>
+    <p>
+        Per compensare l'assenza della tastiera fisica, l'applicazione integra un overlay HTML/CSS 
+        sovrapposto al canvas. Questo pannello offre pulsanti touch dedicati per la pausa ("Pause")
+        e il ciclo degli scenari ("Change Skybox"). Inoltre, attivando il comando 
+        "Move Light", compare a schermo una tastiera virtuale che permette
+        un controllo immediato per il posizionamento spaziale della lampadina.
+    </p>
+
+    <div class="screenshot-container">
+        <img src="screenshots/mobile.png" 
+             style="max-width: 100%; max-height: 100%;" 
+             alt="Interfaccia Mobile">
+    </div>
+
+    <h3>Pannello di Controllo (dat.gui)</h3>
+    <p>
+        L'interfaccia di controllo avanzato è gestita dalla 
+        libreria <code>dat.gui</code> ed è disponibile sia su desktop che su 
+        dispositivi mobile. Qui sono presenti impostazioni della scena 
+        organizzati in comode cartelle espandibili: calibrazione geometrica del frustum 
+        della telecamera, slider per regolare la velocità delle ali degli insetti,
+        toggle per abilitare/disabilitare tecniche di rendering
+        avanzate come ombre e bump mapping.
+    </p>
+
+    <h2>Struttura del Codice</h2>
+    <p>
+        Il software dell'applicazione è suddiviso in moduli logici 
+        per favorire l'ordine e l'isolamento delle funzioni:
+    </p>
+    <ul>
+        <li><code>still_life.html</code>: Contiene gli script 
+        dedicati agli Shaders (Vertex e Fragment) scritti in linguaggio GLSL, 
+        oltre all'interfaccia utente mobile.</li>
+        <li><code>still_life.js</code>: Il motore principale dell'applicazione. 
+        Gestisce il setup del contesto WebGL, l'inizializzazione dei 
+        Framebuffers, il caricamento delle texture e coordina l'esecuzione del 
+        loop di rendering principale.</li>
+        <li><code>loader.js</code>: Raggruppa tutte le funzioni di caricamento 
+        asincrono e pre-elaborazione degli asset, compreso il parsing dei 
+        file OBJ (<code>loadMeshWithGLM</code>), la creazione delle texture 2D e 
+        la gestione delle texture di bump in formato <code>LUMINANCE</code>.</li>
+        <li><code>input.js</code>: Raccoglie tutti i listener degli eventi 
+        di sistema per isolare la gestione di tastiera, mouse ed eventi touch.</li>
+        <li><code>animation.js</code>: Contiene esclusivamente le equazioni 
+        e le trasformazioni di matrice legate alla cinematica dei modelli animati.</li>
+        <li><code>gui.js</code>: Configura le cartelle, i controlli e i 
+        valori di default legati all'interfaccia <code>dat.gui</code>.</li>
+        <li><code>skybox.js</code>: Gestisce le routine matematiche e grafiche 
+        per la generazione delle geometrie di sfondo e l'estrazione delle cubemap.</li>
+    </ul>
+
+</div>
+
+</body>
+</html>

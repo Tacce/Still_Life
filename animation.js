@@ -29,7 +29,7 @@ window.computeButterflyAnimation = function(time, butterflyAladxWorldMatrix, but
     const butterflyOrbitX = 5 * Math.cos(butterflyOrbitPhase);
     const butterflyOrbitY = 3 + 0.5 * Math.sin(6 * butterflyOrbitPhase);
     const butterflyOrbitZ = 8 * Math.sin(butterflyOrbitPhase);
-    // Tangent direction on XZ-plane
+   
     const dirX = 5 * Math.sin(butterflyOrbitPhase);
     const dirZ = -8 * Math.cos(butterflyOrbitPhase);
     const butterflyYaw = Math.atan2(dirX, dirZ) - Math.PI / 2;
