@@ -50,13 +50,13 @@ const skyboxPresets = {
         light: { x: -1.0, y: 10.0, z: 5.0, ambientR: 0.2, ambientG: 0.2, ambientB: 0.25, lightR: 1.0, lightG: 0.9, lightB: 0.8, isDirectional: false }
     },
     'Giorno': {
-        url: 'resources/skybox/giorno.png',
-        floor_url: 'resources/texture/floor_giorno.png',
+        url: 'resources/skybox/giorno.jpg',
+        floor_url: 'resources/texture/floor_giorno.jpg',
         light: { x: 9, y: 8.0, z: 15, ambientR: 0.42, ambientG: 0.38, ambientB: 0.35, lightR: 1.0, lightG: 0.95, lightB: 0.9, isDirectional: true }
     },
     'Notte': {
-        url: 'resources/skybox/notte.png',
-        floor_url: 'resources/texture/floor_notte.png',
+        url: 'resources/skybox/notte.jpg',
+        floor_url: 'resources/texture/floor_notte.jpg',
         light: { x: -1.0, y: 9.0, z: -12.0, ambientR: 0., ambientG: 0., ambientB: 0.0, lightR: 0.15, lightG: 0.2, lightB: 0.35, isDirectional: true } 
     }
 };
@@ -214,23 +214,23 @@ async function main() {
     const butterflyAlasxBuffers = webglUtils.createBufferInfoFromArrays(gl, Butterfly_alasxMesh);
 
 
-    const tavoloTexture = loadTexture(gl, 'resources/texture/wood.png'); 
+    const tavoloTexture = loadTexture(gl, 'resources/texture/wood.jpg'); 
     const fiascoTexture = createSolidColorTexture(gl, 100, 180, 120, 255);
     const bottiglioneTexture = createSolidColorTexture(gl, 194, 116, 0, 255);
     const vinoTexture = createSolidColorTexture(gl, 15, 0, 0, 255);
     const tappoTexture = loadTexture(gl, 'resources/texture/sughero.jpg');
-    const etichettaTexture = loadTexture(gl, 'resources/texture/Etichetta.png');
+    const etichettaTexture = loadTexture(gl, 'resources/texture/Etichetta.jpg');
     const tovagliaTexture = loadTexture(gl, 'resources/texture/tovaglia.jpg');
     const lightBulbTexture = loadTexture(gl, 'resources/texture/light_bulb.png');
 
     const Fly_corpoTexture = createSolidColorTexture(gl, 50, 50, 50, 255);
-    const Fly_alaTexture = loadTexture(gl, 'resources/texture/wings.png');
-    const Fly_occhioTexture = loadTexture(gl, 'resources/texture/Insect-eyes.png');
-    const butterflyTexture = loadTexture(gl, 'resources/texture/Farfalla.png');
+    const Fly_alaTexture = loadTexture(gl, 'resources/texture/wings.jpg');
+    const Fly_occhioTexture = loadTexture(gl, 'resources/texture/Insect-eyes.jpg');
+    const butterflyTexture = loadTexture(gl, 'resources/texture/Farfalla.jpg');
 
-    const tavoloBumpTexture = loadBumpTexture(gl, 'resources/bump_maps/wood_bump.png');
-    const tovagliaBumpTexture = loadBumpTexture(gl, 'resources/bump_maps/cloth_bump.png');
-    
+    const tavoloBumpTexture = loadBumpTexture(gl, 'resources/bump_maps/wood_bump.jpg');
+    const tovagliaBumpTexture = loadBumpTexture(gl, 'resources/bump_maps/cloth_bump.jpg');
+
     const aladxWorldMatrix = m4.translation(-0.013, 0.157, 0.018);
     const alasxWorldMatrix = m4.translation(-0.013, 0.157, -0.018);
     const flyBaseMatrix = m4.multiply(
