@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Relazione Progetto WebGL</title>
+    <title>Relazione Progetto WebGL </title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, 
@@ -90,12 +90,11 @@
 
     <!-- DATI STUDENTE -->
     <div class="student-info">
-        <p>Nome: [Il tuo Nome]</p>
-        <p>Cognome: [Il tuo Cognome]</p>
-        <p>Matricola: [La tua Matricola]</p>
+        <p>Esame di Fondamenti di Computer Graphics (Modulo 1)</p>
+        <p>Francesco Taccetti - 1189579 </p>
     </div>
 
-    <h1>Relazione Progetto 3D WebGL: "Still Life"</h1>
+    <h1>Relazione Progetto 3D WebGL: "Natura Morta"</h1>
 
     <h2>Introduzione</h2>
     <p>
@@ -147,15 +146,15 @@
         avviene tramite la funzione
         <code>loadMeshWithGLM</code> che, appoggiandosi al parser, 
         estrae i dati poligonali e prepara in parallelo i buffer per 
-        le posizioni, le coordinate texture e due set distinti di normali 
+        le posizioni, le coordinate texture, le tangenti e due set distinti di normali 
         (normali di vertice e normali di faccia), fondamentali per supportare 
         dinamicamente le diverse tecniche di shading previste dall'applicazione.
     </p>
     <p>
         Il realismo visivo è garantito da un approccio misto al texture mapping. 
         Alcuni modelli, come gli elementi in vetro colorato, utilizzano 
-        texture monocromatiche generate direttamente via software a runtime. 
-        Per i restanti oggetti della scena sono state impiegate texture 
+        texture monocromatiche generate direttamente via software a runtime mentre
+        per i restanti oggetti della scena sono state impiegate texture 
         basate su file immagine. Infine, per soddisfare il requisito relativo 
         alla firma dell'autore, la foto personale è stata integrata all'interno 
         della texture dell'etichetta, applicata sulla superficie frontale 
@@ -223,19 +222,18 @@
         Il <em>Vertex Shader</em> riceve entrambi gli attributi, li moltiplica per 
         la matrice <code>u_worldInverseTranspose</code> per portarli nel corretto 
         spazio del mondo, e li passa al <em>Fragment Shader</em> come variabili 
-        <code>varying</code>. All'interno del <em>Fragment Shader</em>, una variabile 
+        <code>varying</code>; qui una variabile 
         uniforme booleana (<code>u_useFlatShading</code>, controllabile tramite 
         la GUI utente) agisce da switch logico e permette di decidere istantaneamente 
         quale dei due vettoriutilizzare nel calcolo del 
         prodotto scalare per ricavare la componente iffusa di Lambert e la 
-        componente Speculare, applicandola alle proprietà del materiale attivo.
+        componente speculare, applicandola alle proprietà del materiale attivo.
     </p>
 
     <h3>Skybox e Pavimento Infinito</h3>
     <p>
-        Lo sfondo della scena è gestito tramite skybox caricate dal 
-        file <code>skybox.js</code> tramite la routine 
-        <code>loadCubemapFromCross</code>. Questa funzione accetta una 
+        Lo sfondo della scena è gestito tramite skybox caricate tramite la routine 
+        <code>loadCubemapFromCross</code>, funzione che accetta in input una 
         singola texture con layout a "croce orizzontale" (griglia 4x3), 
         utilizzando un <code>canvas 2D</code> nascosto per ritagliare e 
         inviare a WebGL le sei facce della cubemap. L'applicazione consente 
@@ -250,8 +248,8 @@
         eseguire un tiling fitto ed evitarne la sgranatura. 
         Affinché il terreno si fonda in maniera naturale con l'orizzonte della 
         skybox, nel <em>Fragment Shader</em> del pavimento è stato implementato 
-        un effetto nebbia basato sulla distanza euclidea dalla telecamera. 
-        Utilizzando la funzione <code>smoothstep</code>, viene calcolato un 
+        un effetto nebbia basato sulla distanza euclidea dalla telecamera: 
+        utilizzando la funzione <code>smoothstep</code>, viene calcolato un 
         fattore di interpolazione che miscela linearmente la texture del prato 
         con il colore campionato dalla skybox, dissolvendo dolcemente la geometria all'orizzonte.
     </p>
@@ -301,8 +299,8 @@
             e dei dettagli degli oggetti appoggiati sul tavolo (i quali possono così proiettare ombre 
             più definite e farsi ombra a vicenda).
             Per prevenire artefatti visivi (<em>shadow acne</em>), il <em>depth bias</em> 
-            non viene calcolato manualmente nello shader, ma è gestito nativamente via hardware 
-            applicando un <strong>Polygon Offset</strong> durante la fase di generazione della mappa. 
+            viene gestito nativamente via hardware applicando un <strong>Polygon Offset</strong>
+            durante la fase di generazione della mappa; a questo si somma poi  un piccolo bias manuale nel Fragment Shader.
             <br><br>
             Per riflettere accuratamente la sorgente luminosa attiva, lo shader adotta due tipi di proiezione 
             della camera di luce:

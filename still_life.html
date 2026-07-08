@@ -231,7 +231,7 @@
             vec3 surfaceToViewDirection = normalize(u_viewWorldPosition - v_surfaceWorldPosition);
             
             vec3 projectedTexcoord = v_projectedTexcoord.xyz / v_projectedTexcoord.w;
-            float bias = 0.0002;
+            float bias = 0.0001;
             float currentDepth = projectedTexcoord.z - bias;
 
             bool inRange =

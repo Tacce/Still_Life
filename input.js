@@ -29,8 +29,8 @@ function initInputHandlers(canvas) {
         if (pressedKeys.has('e')) lightState.y -= step;
 
         lightState.x = Math.max(-10.0, Math.min(10.0, lightState.x));
-        lightState.y = Math.max(5.0, Math.min(15.0, lightState.y));
-        lightState.z = Math.max(-15.0, Math.min(15.0, lightState.z));
+        lightState.y = Math.max(6.0, Math.min(15.0, lightState.y));
+        lightState.z = Math.max(-10.0, Math.min(10, lightState.z));
     }
 
     function isLightMovementKey(key) {

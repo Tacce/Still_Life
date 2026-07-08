@@ -228,8 +228,8 @@ async function main() {
     const Fly_occhioTexture = loadTexture(gl, 'resources/texture/Insect-eyes.png');
     const butterflyTexture = loadTexture(gl, 'resources/texture/Farfalla.png');
 
-    const tavoloBumpTexture = loadBumpTexture(gl, 'resources/bump_maps/wood_bump1.png');
-    const tovagliaBumpTexture = loadBumpTexture(gl, 'resources/bump_maps/cloth_bump2.png');
+    const tavoloBumpTexture = loadBumpTexture(gl, 'resources/bump_maps/wood_bump.png');
+    const tovagliaBumpTexture = loadBumpTexture(gl, 'resources/bump_maps/cloth_bump.png');
     
     const aladxWorldMatrix = m4.translation(-0.013, 0.157, 0.018);
     const alasxWorldMatrix = m4.translation(-0.013, 0.157, -0.018);
@@ -422,26 +422,25 @@ async function main() {
         const viewMatrix = m4.inverse(cameraMatrix);
 
         let lightTarget;
+        let lightProjectionMatrix;
         
         if (lightState.isDirectional) {
             // Il Sole guarda verso il centro della scena per creare ombre lunghe e angolate
             lightTarget = [0, 0, 0]; 
-        } else {
-            // La lampadina guarda dritta verso il basso 
-            lightTarget = [lightState.x, 0.0, lightState.z - 0.001];
-        }
 
-        const lightWorldMatrix = m4.lookAt([lightState.x, lightState.y, lightState.z], lightTarget, [0, 1, 0]);
-
-        let lightProjectionMatrix;
-        if (lightState.isDirectional) {
             const frustumSize = 20;
             const frustumDepth = 40;
             lightProjectionMatrix = m4.orthographic(-frustumSize, frustumSize, -frustumSize, frustumSize, 0.5, frustumDepth);
         } else {
+            // La lampadina guarda dritta verso il basso 
+            lightTarget = [lightState.x, 0.0, lightState.z - 0.001];
+            
             let windowSize = 195 - (5.0*lightState.y); 
-            lightProjectionMatrix = m4.perspective(windowSize * Math.PI / 180, 1.0, 0.5, 30.0);
+            lightProjectionMatrix = m4.perspective(windowSize * Math.PI / 180, 1.0, 0.5, 20.0);
         }
+
+        const lightWorldMatrix = m4.lookAt([lightState.x, lightState.y, lightState.z], lightTarget, [0, 1, 0]);
+
 
 
         if (shadowState.enabled) {
@@ -455,7 +454,7 @@ async function main() {
             gl.disable(gl.BLEND);
 
             gl.enable(gl.POLYGON_OFFSET_FILL);
-            gl.polygonOffset(1.0, 1.0);
+            gl.polygonOffset(2.0, 2.0);
             drawSceneObjects(depthProgramInfo, { flyWorldMatrices, butterflyWorldMatrices, cameraPosition }, { includeTransparent: true, shadowPass: true });
             gl.disable(gl.POLYGON_OFFSET_FILL);
         }
